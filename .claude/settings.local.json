@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(npm install next@latest)",
+      "Bash(npx playwright install chromium)",
+      "Bash(npx prisma generate)",
+      "Bash(npx prisma migrate dev --name init)",
+      "Bash(npx next build)",
+      "Bash(NEXT_TELEMETRY_DISABLED=1 npx next build)",
+      "Bash(npm install docx)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(npx prisma migrate dev --name add_template)",
+      "Bash(npm install zod --save)"
+    ]
+  }
+}

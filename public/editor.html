@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Editor de Templates — Indicações Legislativas</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════
+   CSS VARIABLES
+   ═══════════════════════════════════════════ */
+:root {
+  --bg: #f1f5f9;
+  --surface: #ffffff;
+  --panel-bg: #f8fafc;
+  --border: #e2e8f0;
+  --border-light: #f1f5f9;
+  --accent: #1e40af;
+  --accent-light: #dbeafe;
+  --accent-hover: #1e3a8a;
+  --success: #059669;
+  --error: #dc2626;
+  --text-1: #0f172a;
+  --text-2: #475569;
+  --text-3: #94a3b8;
+  --radius: 8px;
+  --shadow: 0 1px 3px rgba(0,0,0,.06);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,.12);
+  --panel-w: 256px;
+  --toolbar-h: 52px;
+}
+
+/* ═══════════════════════════════════════════
+   RESET & BASE
+   ═══════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Inter',system-ui,sans-serif;font-size:13px;color:var(--text-1);background:var(--bg)}
+input,select,button,textarea{font-family:inherit;font-size:inherit}
+button{cursor:pointer;border:none;background:none}
+img{max-width:100%;display:block}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+
+/* ═══════════════════════════════════════════
+   TOP TOOLBAR
+   ═══════════════════════════════════════════ */
+.toolbar{
+  height:var(--toolbar-h);background:var(--surface);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;z-index:50;
+}
+.toolbar-left{display:flex;align-items:center;gap:10px}
+.toolbar-left h1{font-size:14px;font-weight:700;color:var(--text-1)}
+.toolbar-left .sub{font-size:11px;color:var(--text-3)}
+.toolbar-right{display:flex;gap:6px}
+.tb-btn{
+  padding:7px 14px;border-radius:6px;font-weight:600;font-size:12px;
+  transition:all .15s;text-decoration:none;display:inline-flex;align-items:center;gap:4px;
+}
+.tb-btn-outline{border:1px solid var(--border);color:var(--text-2);background:var(--surface)}
+.tb-btn-outline:hover{border-color:var(--accent);color:var(--accent)}
+.tb-btn-primary{background:var(--accent);color:#fff}
+.tb-btn-primary:hover{background:var(--accent-hover)}
+.tb-btn-success{background:var(--success);color:#fff}
+.tb-btn-success:hover{filter:brightness(.9)}
+
+/* ═══════════════════════════════════════════
+   LAYOUT 3 COLUNAS
+   ═══════════════════════════════════════════ */
+.editor-layout{
+  display:grid;grid-template-columns:var(--panel-w) 1fr var(--panel-w);
+  height:calc(100vh - var(--toolbar-h));overflow:hidden;
+}
+
+/* PAINÉIS */
+.panel{background:var(--panel-bg);overflow-y:auto;padding:14px;border-right:1px solid var(--border)}
+.panel-right{border-right:none;border-left:1px solid var(--border)}
+.panel-section{margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border-light)}
+.panel-section:last-child{border-bottom:none;margin-bottom:0}
+.panel-section h3{
+  font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;
+  color:var(--text-3);margin-bottom:10px;
+}
+
+/* CAMPOS */
+.field-group{margin-bottom:8px}
+.field-group>label{display:block;font-size:11px;font-weight:500;color:var(--text-2);margin-bottom:3px}
+.field-group input[type="text"],
+.field-group select{
+  width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:4px;
+  background:var(--surface);font-size:12px;
+}
+.field-group input[type="text"]:focus,
+.field-group select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-light)}
+.field-group input[type="range"]{width:100%;accent-color:var(--accent)}
+.field-group input[type="color"]{width:36px;height:26px;padding:1px;border:1px solid var(--border);border-radius:4px;cursor:pointer}
+.toggle-group{margin-bottom:6px}
+.toggle-group label{display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer}
+.toggle-group input[type="color"]{width:26px;height:20px;padding:1px;border:1px solid var(--border);border-radius:3px;margin-left:8px;cursor:pointer}
+
+/* UPLOADS */
+.upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.upload-box{
+  position:relative;border:1.5px dashed var(--border);border-radius:6px;
+  padding:8px;text-align:center;cursor:pointer;transition:border-color .15s;
+  min-height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  overflow:hidden;
+}
+.upload-box.full-width{grid-column:1/-1}
+.upload-box:hover{border-color:var(--accent)}
+.upload-box input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer}
+.upload-box .placeholder{font-size:10px;color:var(--text-3);line-height:1.3}
+.upload-box .placeholder strong{display:block;font-size:10px;color:var(--text-2)}
+.upload-box img{max-height:40px;object-fit:contain}
+.upload-box img[src=""]{display:none}
+.upload-box img:not([src=""])+.placeholder{display:none}
+.upload-remove{
+  position:absolute;top:2px;right:2px;background:var(--error);color:#fff;
+  width:16px;height:16px;border-radius:50%;font-size:9px;
+  display:none;align-items:center;justify-content:center;z-index:2;
+}
+.upload-box:hover .upload-remove{display:flex}
+
+/* VARIÁVEIS */
+.var-tags{display:flex;flex-wrap:wrap;gap:4px}
+.var-tag{
+  padding:3px 7px;background:#fef3c7;border:1px solid #fbbf24;border-radius:4px;
+  font-size:10px;font-weight:600;color:#92400e;cursor:pointer;transition:all .15s;
+}
+.var-tag:hover{background:#fde68a;transform:translateY(-1px)}
+
+/* PRESETS */
+.preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:6px}
+.preset{
+  padding:5px;border:1px solid var(--border);border-radius:4px;
+  font-size:10px;font-weight:500;background:var(--surface);transition:all .15s;
+}
+.preset:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ═══════════════════════════════════════════
+   CENTRO — EDITOR
+   ═══════════════════════════════════════════ */
+.editor-center{background:#cbd5e1;overflow-y:auto;display:flex;justify-content:center;padding:24px 16px}
+.a4-wrapper{flex-shrink:0}
+
+/* ═══════════════════════════════════════════
+   A4 DOCUMENT
+   ═══════════════════════════════════════════ */
+.a4-page{
+  width:794px;min-height:1122px;background:#fff;
+  box-shadow:0 2px 20px rgba(0,0,0,.15);position:relative;
+  padding:94px 94px 80px 94px;
+  font-family:'Times New Roman',Times,serif;font-size:12pt;line-height:1.5;color:#000;
+}
+
+/* EDITABLE FIELDS */
+[data-field]{
+  outline:none;border:1px solid transparent;border-radius:2px;
+  transition:border-color .15s,background .15s;cursor:text;
+  padding:1px 4px;margin:-1px -4px;min-height:1em;
+}
+[data-field]:hover{border-color:#93c5fd;background:rgba(30,64,175,.02)}
+[data-field]:focus{border-color:var(--accent);background:rgba(30,64,175,.04)}
+
+/* HEADER */
+.doc-header{display:flex;align-items:flex-start;gap:12px;margin-bottom:0}
+.header-logo-left,.header-logo-right{
+  width:78px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  min-height:50px;cursor:pointer;border:1.5px dashed transparent;border-radius:4px;
+  transition:border-color .15s;position:relative;
+}
+.header-logo-left:hover,.header-logo-right:hover{border-color:#93c5fd}
+.header-logo-left img,.header-logo-right img{max-height:74px;max-width:78px;object-fit:contain}
+.header-logo-left img[src=""],.header-logo-right img[src=""]{display:none}
+.logo-placeholder{font-family:'Inter',sans-serif;font-size:9px;color:var(--text-3)}
+.header-logo-left img:not([src=""])+.logo-placeholder,
+.header-logo-right img:not([src=""])+.logo-placeholder{display:none}
+.header-info{flex:1;text-align:center}
+
+/* DIVIDER */
+.doc-divider{border:none;border-top:2px solid #000;margin:10px 0 14px 0}
+
+/* CONTENT */
+.doc-content{min-height:300px;outline:none;cursor:text}
+.doc-content:focus{box-shadow:inset 0 0 0 1px var(--accent-light);border-radius:2px}
+.doc-content p{margin-bottom:10px}
+
+/* TEMPLATE VARS */
+.tpl-var{
+  display:inline;background:#fef3c7;border:1px solid #fbbf24;border-radius:3px;
+  padding:1px 5px;font-family:'Inter',monospace;font-size:0.8em;color:#92400e;
+  white-space:nowrap;cursor:default;user-select:all;
+}
+
+/* FOOTER */
+.doc-footer{margin-top:30px}
+.footer-local{text-align:center;margin-bottom:30px}
+.footer-line-hr{border:none;border-top:1px solid #000;margin-top:20px;margin-bottom:6px}
+.signature-block{display:flex;justify-content:center}
+.signature-main{text-align:center}
+.signature-img-box{min-height:40px;display:flex;align-items:flex-end;justify-content:center}
+.signature-img-box img{max-height:60px;object-fit:contain}
+.signature-img-box img[src=""]{display:none}
+.signature-line{width:240px;border-top:1px solid #000;margin:0 auto 4px auto}
+.partido-logo-footer{margin-top:8px;display:flex;justify-content:center}
+.partido-logo-footer img{max-height:42px;max-width:110px;object-fit:contain}
+.partido-logo-footer img[src=""]{display:none}
+.partido-logo-footer{cursor:pointer;border:1.5px dashed transparent;border-radius:4px;padding:4px;transition:border-color .15s}
+.partido-logo-footer:hover{border-color:#93c5fd}
+
+/* WATERMARK */
+.watermark{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;opacity:.08;z-index:0}
+.watermark img{max-height:400px;max-width:400px;object-fit:contain}
+.watermark img[src=""]{display:none}
+
+/* LEFT BORDER */
+.a4-page.has-left-border{border-left:4px solid #1a365d}
+
+/* ═══════════════════════════════════════════
+   FLOATING FORMAT TOOLBAR
+   ═══════════════════════════════════════════ */
+.format-toolbar{
+  position:fixed;z-index:200;background:#1e293b;border-radius:8px;
+  padding:5px 8px;display:flex;align-items:center;gap:3px;
+  box-shadow:0 8px 32px rgba(0,0,0,.25);transform:translateX(-50%);
+  transition:opacity .12s;
+}
+.format-toolbar.hidden{opacity:0;pointer-events:none}
+.format-toolbar::after{
+  content:'';position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);
+  border:5px solid transparent;border-top-color:#1e293b;
+}
+.ft-select{
+  background:#334155;border:none;color:#e2e8f0;border-radius:4px;
+  padding:4px 6px;font-size:11px;outline:none;cursor:pointer;
+}
+.ft-input{
+  background:#334155;border:none;color:#e2e8f0;border-radius:4px;
+  padding:4px;width:38px;text-align:center;font-size:11px;outline:none;
+}
+.ft-btn{
+  background:none;border:none;color:#94a3b8;width:26px;height:26px;
+  border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:all .1s;
+}
+.ft-btn:hover{background:#334155;color:#e2e8f0}
+.ft-btn.active{background:#2563eb;color:#fff}
+.ft-sep{width:1px;height:18px;background:#475569;margin:0 2px}
+.ft-color{width:22px;height:22px;border:2px solid #475569;border-radius:4px;padding:0;cursor:pointer;background:none}
+.ft-color::-webkit-color-swatch-wrapper{padding:0}
+.ft-color::-webkit-color-swatch{border:none;border-radius:2px}
+
+/* ═══════════════════════════════════════════
+   TOAST
+   ═══════════════════════════════════════════ */
+.toast{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  padding:8px 20px;border-radius:6px;color:#fff;font-weight:600;font-size:12px;
+  z-index:999;box-shadow:var(--shadow-lg);transition:opacity .3s;pointer-events:none;
+}
+.toast.hidden{opacity:0}
+.toast.success{background:var(--success)}
+.toast.error{background:var(--error)}
+.toast.info{background:var(--accent)}
+
+/* ═══════════════════════════════════════════
+   MODAL
+   ═══════════════════════════════════════════ */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;display:flex;align-items:center;justify-content:center}
+.modal-overlay.hidden{display:none}
+.modal-content{background:var(--bg);border-radius:12px;padding:20px;max-height:92vh;overflow-y:auto;position:relative}
+.modal-close{position:absolute;top:8px;right:12px;font-size:22px;color:var(--text-2);background:var(--surface);width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+
+.help-text{font-size:10px;color:var(--text-3);margin-bottom:6px}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     TOOLBAR
+     ═══════════════════════════════════════ -->
+<header class="toolbar">
+  <div class="toolbar-left">
+    <h1>Editor de Template</h1>
+    <input type="text" id="template-name" placeholder="Nome do template" value="Template Padrão"
+      style="font-size:12px;border:1px solid var(--border);border-radius:4px;padding:5px 8px;background:var(--surface);color:var(--text-1);width:180px">
+  </div>
+  <div class="toolbar-right">
+    <button class="tb-btn tb-btn-outline" onclick="openPreview()">Pré-visualizar</button>
+    <a href="/" class="tb-btn tb-btn-outline">Voltar ao Sistema</a>
+    <button class="tb-btn tb-btn-outline" onclick="saveAsNew()" title="Salva como um novo template sem substituir o atual">Salvar como Novo</button>
+    <button class="tb-btn tb-btn-success" onclick="saveTemplate()">Salvar</button>
+    <button class="tb-btn tb-btn-primary" onclick="exportTemplate()">Exportar JSON</button>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════
+     LAYOUT PRINCIPAL
+     ═══════════════════════════════════════ -->
+<main class="editor-layout">
+
+<!-- ─── PAINEL ESQUERDO ─── -->
+<aside class="panel panel-left">
+
+  <section class="panel-section">
+    <h3>Logos e Imagens</h3>
+    <div class="upload-grid">
+      <div class="upload-box" id="box-logo-left">
+        <img id="prev-logo-left" src="">
+        <span class="placeholder"><strong>Esquerda</strong>Logo Câmara</span>
+        <input type="file" accept="image/*" onchange="handleUpload(this,'left')">
+      </div>
+      <div class="upload-box" id="box-logo-right">
+        <img id="prev-logo-right" src="">
+        <span class="placeholder"><strong>Direita</strong>Logo Inst.</span>
+        <input type="file" accept="image/*" onchange="handleUpload(this,'right')">
+      </div>
+    </div>
+    <div class="field-group">
+      <label>Tamanho Esquerda: <span id="v-left-size">100</span>%</label>
+      <input type="range" id="logo-left-size" min="30" max="200" value="100" step="5" oninput="updateLogoSize('left')">
+    </div>
+    <div class="field-group">
+      <label>Tamanho Direita: <span id="v-right-size">100</span>%</label>
+      <input type="range" id="logo-right-size" min="30" max="200" value="100" step="5" oninput="updateLogoSize('right')">
+    </div>
+    <div class="upload-grid" style="margin-top:6px">
+      <div class="upload-box" id="box-partido">
+        <img id="prev-partido" src="">
+        <span class="placeholder"><strong>Partido</strong>Abaixo assin.</span>
+        <input type="file" accept="image/*" onchange="handleUpload(this,'partido')">
+      </div>
+      <div class="upload-box" id="box-signature">
+        <img id="prev-signature" src="">
+        <span class="placeholder"><strong>Assinatura</strong>Digitalizada</span>
+        <input type="file" accept="image/*" onchange="handleUpload(this,'signature')">
+      </div>
+    </div>
+    <div class="field-group">
+      <label>Tamanho Partido: <span id="v-partido-size">100</span>%</label>
+      <input type="range" id="logo-partido-size" min="30" max="200" value="100" step="5" oninput="updateLogoSize('partido')">
+    </div>
+    <div class="field-group">
+      <label>Tamanho Assinatura: <span id="v-sign-size">100</span>%</label>
+      <input type="range" id="logo-sign-size" min="30" max="200" value="100" step="5" oninput="updateLogoSize('signature')">
+    </div>
+    <div class="upload-box full-width" id="box-watermark" style="margin-top:6px">
+      <img id="prev-watermark" src="">
+      <span class="placeholder"><strong>Marca d'água / Brasão</strong></span>
+      <input type="file" accept="image/*" onchange="handleUpload(this,'watermark')">
+    </div>
+    <div class="field-group">
+      <label>Opacidade marca d'água: <span id="wm-opacity-val">8</span>%</label>
+      <input type="range" id="wm-opacity" min="1" max="30" value="8" oninput="updateWatermark()">
+    </div>
+  </section>
+
+  <section class="panel-section">
+    <h3>Dados para Geração</h3>
+    <p class="help-text">Usado pela IA ao gerar indicações</p>
+    <div class="field-group">
+      <label>Nome do Prefeito</label>
+      <input type="text" id="f-prefeito" value="Farid Said Madi">
+    </div>
+  </section>
+
+  <section class="panel-section">
+    <h3>Variáveis</h3>
+    <p class="help-text">Clique para inserir no corpo do documento</p>
+    <div class="var-tags">
+      <button class="var-tag" onclick="insertVar('numero_indicacao')">Nº Indicação</button>
+      <button class="var-tag" onclick="insertVar('data_extenso')">Data Extenso</button>
+      <button class="var-tag" onclick="insertVar('nome_vereador')">Vereador</button>
+      <button class="var-tag" onclick="insertVar('nome_prefeito')">Prefeito</button>
+      <button class="var-tag" onclick="insertVar('bairro')">Bairro</button>
+      <button class="var-tag" onclick="insertVar('logradouro')">Logradouro</button>
+      <button class="var-tag" onclick="insertVar('cep')">CEP</button>
+      <button class="var-tag" onclick="insertVar('descricao_problema')">Descrição</button>
+      <button class="var-tag" onclick="insertVar('acoes_solicitadas')">Ações</button>
+      <button class="var-tag" onclick="insertVar('ano')">Ano</button>
+    </div>
+  </section>
+
+  <section class="panel-section" style="border-bottom:none">
+    <h3>Dica</h3>
+    <p class="help-text" style="line-height:1.5">
+      Clique em qualquer texto no documento para editá-lo diretamente.
+      Uma barra de formatação aparecerá com opções de fonte, tamanho e estilo.
+    </p>
+  </section>
+</aside>
+
+<!-- ─── CENTRO: DOCUMENTO A4 ─── -->
+<div class="editor-center">
+  <div class="a4-wrapper">
+    <div class="a4-page" id="a4">
+
+      <!-- Watermark -->
+      <div class="watermark" id="doc-wm"><img id="doc-wm-img" src=""></div>
+
+      <!-- Header -->
+      <div class="doc-header">
+        <div class="header-logo-left" onclick="triggerUpload('left')">
+          <img id="doc-logo-left" src="">
+          <span class="logo-placeholder">Logo</span>
+        </div>
+        <div class="header-info">
+          <div contenteditable="true" data-field="inst-name"
+               style="font-size:14pt;font-weight:bold;text-transform:uppercase;text-align:center;letter-spacing:0.3px">Câmara Municipal de Guarujá</div>
+          <div contenteditable="true" data-field="inst-title"
+               style="font-size:9pt;text-transform:uppercase;text-align:center;letter-spacing:0.5px;margin-top:1px">ESTADO DE SÃO PAULO</div>
+          <div contenteditable="true" data-field="inst-subtitle"
+               style="font-size:11pt;font-style:italic;text-align:center;margin-top:4px">Márcio Nabor Tardelli</div>
+          <div contenteditable="true" data-field="gabinete"
+               style="font-size:9pt;text-align:center;color:#444;margin-top:1px">Gabinete do Vereador MÁRCIO DO PET SHOP</div>
+          <div contenteditable="true" data-field="email"
+               style="font-size:9pt;text-align:center;color:#444;margin-top:1px">Marcio@camaraguaruja.sp.gov.br</div>
+        </div>
+        <div class="header-logo-right" onclick="triggerUpload('right')">
+          <img id="doc-logo-right" src="">
+          <span class="logo-placeholder">Logo</span>
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <hr class="doc-divider" id="doc-divider">
+
+      <!-- Greeting -->
+      <div contenteditable="true" data-field="greeting"
+           style="font-weight:bold;text-align:center;margin-bottom:16px">SENHOR PRESIDENTE, SENHORAS VEREADORAS, SENHORES VEREADORES;</div>
+
+      <!-- Content editable -->
+      <div class="doc-content" id="content-area" contenteditable="true">
+        <p><span class="tpl-var" contenteditable="false" data-var="descricao_problema">{{descricao_problema}}</span></p>
+        <p><span class="tpl-var" contenteditable="false" data-var="justificativa">{{justificativa}}</span></p>
+        <p style="text-align:center"><strong>INDICAÇÃO Nº <span class="tpl-var" contenteditable="false" data-var="numero_indicacao">{{numero_indicacao}}</span>/<span class="tpl-var" contenteditable="false" data-var="ano">{{ano}}</span></strong></p>
+        <p>Indico à Mesa, nos termos regimentais, que seja oficiado ao Excelentíssimo Senhor Prefeito Municipal de Guarujá, <span class="tpl-var" contenteditable="false" data-var="nome_prefeito">{{nome_prefeito}}</span>, para que determine ao setor competente:</p>
+        <p><span class="tpl-var" contenteditable="false" data-var="acoes_solicitadas">{{acoes_solicitadas}}</span></p>
+      </div>
+
+      <!-- Footer -->
+      <div class="doc-footer">
+        <hr class="footer-line-hr" id="footer-line-hr">
+        <p class="footer-local">
+          <span contenteditable="true" data-field="sala" style="display:inline">Sala Alberto Santos Dumont</span>, <span class="tpl-var" contenteditable="false" data-var="data_extenso">{{data_extenso}}</span>
+        </p>
+        <div class="signature-block">
+          <div class="signature-main">
+            <div class="signature-img-box">
+              <img id="doc-signature-img" src="">
+            </div>
+            <div class="signature-line"></div>
+            <div contenteditable="true" data-field="signer-name"
+                 style="font-weight:bold;text-align:center;text-transform:uppercase">MÁRCIO NABOR TARDELLI</div>
+            <div contenteditable="true" data-field="signer-cargo"
+                 style="font-size:0.9em;text-align:center">Vereador</div>
+            <div class="partido-logo-footer" onclick="triggerUpload('partido')">
+              <img id="doc-partido-footer" src="">
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ─── PAINEL DIREITO ─── -->
+<aside class="panel panel-right">
+
+  <section class="panel-section">
+    <h3>Tipografia Global</h3>
+    <p class="help-text">Afeta o corpo do documento</p>
+    <div class="field-group"><label>Fonte padrão</label>
+      <select id="f-font" onchange="updateGlobal()">
+        <option value="'Times New Roman', Times, serif">Times New Roman</option>
+        <option value="Garamond, 'EB Garamond', serif">Garamond</option>
+        <option value="Georgia, serif">Georgia</option>
+        <option value="Arial, Helvetica, sans-serif">Arial</option>
+        <option value="Calibri, 'Segoe UI', sans-serif">Calibri</option>
+      </select>
+    </div>
+    <div class="field-group"><label>Tamanho: <span id="v-fs">12</span>pt</label>
+      <input type="range" id="f-font-size" min="9" max="16" value="12" step="0.5" oninput="updateGlobal()"></div>
+    <div class="field-group"><label>Altura de linha: <span id="v-lh">1.5</span></label>
+      <input type="range" id="f-line-h" min="1.0" max="2.5" value="1.5" step="0.05" oninput="updateGlobal()"></div>
+    <div class="field-group"><label>Espaço entre parágrafos: <span id="v-ps">12</span>pt</label>
+      <input type="range" id="f-para-sp" min="0" max="24" value="12" step="1" oninput="updateGlobal()"></div>
+    <div class="field-group"><label>Recuo: <span id="v-indent">0</span>mm</label>
+      <input type="range" id="f-indent" min="0" max="30" value="0" step="1" oninput="updateGlobal()"></div>
+    <div class="toggle-group"><label><input type="checkbox" id="f-justified" checked onchange="updateGlobal()"> Texto justificado</label></div>
+  </section>
+
+  <section class="panel-section">
+    <h3>Layout</h3>
+    <div class="field-group"><label>Margem lateral: <span id="v-ml">25</span>mm</label>
+      <input type="range" id="f-m-lat" min="15" max="40" value="25" step="1" oninput="updateGlobal()"></div>
+    <div class="field-group"><label>Margem topo/base: <span id="v-mt">25</span>mm</label>
+      <input type="range" id="f-m-tb" min="15" max="40" value="25" step="1" oninput="updateGlobal()"></div>
+  </section>
+
+  <section class="panel-section">
+    <h3>Cores</h3>
+    <div class="field-group"><label>Texto do corpo</label>
+      <input type="color" id="f-color-text" value="#000000" oninput="updateGlobal()"></div>
+    <div class="field-group"><label>Fundo do documento</label>
+      <input type="color" id="f-color-bg" value="#ffffff" oninput="updateGlobal()"></div>
+    <h3 style="margin-top:8px">Presets</h3>
+    <div class="preset-grid">
+      <button class="preset" onclick="applyPreset('classico')">Clássico</button>
+      <button class="preset" onclick="applyPreset('creme')">Creme</button>
+      <button class="preset" onclick="applyPreset('azul')">Azul</button>
+      <button class="preset" onclick="applyPreset('ambar')">Âmbar</button>
+    </div>
+  </section>
+
+  <section class="panel-section">
+    <h3>Linha Divisória</h3>
+    <div class="field-group"><label>Cor</label>
+      <input type="color" id="f-div-color" value="#000000" oninput="updateGlobal()"></div>
+    <div class="field-group"><label>Espessura: <span id="v-dw">2</span>px</label>
+      <input type="range" id="f-div-w" min="1" max="5" value="2" step="0.5" oninput="updateGlobal()"></div>
+  </section>
+
+  <section class="panel-section">
+    <h3>Extras</h3>
+    <div class="toggle-group">
+      <label><input type="checkbox" id="f-left-border" onchange="updateGlobal()"> Borda lateral esquerda</label>
+      <input type="color" id="f-left-border-color" value="#1a365d" oninput="updateGlobal()">
+    </div>
+    <div class="toggle-group">
+      <label><input type="checkbox" id="f-footer-line" checked onchange="updateGlobal()"> Linha no rodapé</label>
+    </div>
+  </section>
+
+</aside>
+</main>
+
+<!-- ═══════════════════════════════════════
+     FLOATING FORMAT TOOLBAR
+     ═══════════════════════════════════════ -->
+<div id="format-toolbar" class="format-toolbar hidden">
+  <select id="ft-font" class="ft-select" onchange="applyFT('fontFamily',this.value)">
+    <option value="'Times New Roman', Times, serif">Times New Roman</option>
+    <option value="Garamond, 'EB Garamond', serif">Garamond</option>
+    <option value="Georgia, serif">Georgia</option>
+    <option value="Arial, Helvetica, sans-serif">Arial</option>
+    <option value="Calibri, 'Segoe UI', sans-serif">Calibri</option>
+    <option value="'Inter', sans-serif">Inter</option>
+  </select>
+  <input type="number" id="ft-size" class="ft-input" min="7" max="36" value="12" onchange="applyFT('fontSize',this.value+'pt')">
+  <div class="ft-sep"></div>
+  <button class="ft-btn" id="ft-bold" onclick="toggleFT('fontWeight','bold','normal')" title="Negrito"><b>B</b></button>
+  <button class="ft-btn" id="ft-italic" onclick="toggleFT('fontStyle','italic','normal')" title="Itálico"><i>I</i></button>
+  <button class="ft-btn" id="ft-upper" onclick="toggleFT('textTransform','uppercase','none')" title="MAIÚSCULAS" style="font-size:10px">AA</button>
+  <div class="ft-sep"></div>
+  <button class="ft-btn" id="ft-align-left" onclick="applyFT('textAlign','left')" title="Esquerda">≡</button>
+  <button class="ft-btn" id="ft-align-center" onclick="applyFT('textAlign','center')" title="Centro">≡</button>
+  <button class="ft-btn" id="ft-align-right" onclick="applyFT('textAlign','right')" title="Direita">≡</button>
+  <div class="ft-sep"></div>
+  <input type="color" id="ft-color" class="ft-color" value="#000000" oninput="applyFT('color',this.value)">
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast hidden"></div>
+
+<!-- MODAL PREVIEW -->
+<div id="modal-preview" class="modal-overlay hidden" onclick="if(event.target===this)closePreview()">
+  <div class="modal-content">
+    <button class="modal-close" onclick="closePreview()">&times;</button>
+    <div id="preview-container"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     JAVASCRIPT
+     ═══════════════════════════════════════ -->
+<script>
+/* ─── State ─── */
+const STORAGE_KEY = 'indicacoes_template_v2';
+let logos = { left: '', right: '', partido: '', watermark: '', signature: '' };
+let activeField = null;
+
+/* ─── Refs ─── */
+const $ = id => document.getElementById(id);
+const a4 = $('a4');
+
+/* ─── Init ─── */
+document.addEventListener('DOMContentLoaded', () => {
+  loadTemplate();
+  setupEditableFields();
+  updateGlobal();
+});
+
+/* ═══════════════════════════════════════
+   EDITABLE FIELDS + FLOATING TOOLBAR
+   ═══════════════════════════════════════ */
+function setupEditableFields() {
+  document.querySelectorAll('[data-field]').forEach(el => {
+    el.addEventListener('focus', onFieldFocus);
+    el.addEventListener('blur', onFieldBlur);
+    // Prevent Enter from creating new lines in single-line fields
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && el.getAttribute('data-field') !== 'greeting') {
+        e.preventDefault();
+      }
+    });
+  });
+
+  // Prevent toolbar from stealing focus
+  $('format-toolbar').addEventListener('mousedown', e => {
+    e.preventDefault();
+  });
+}
+
+function onFieldFocus(e) {
+  activeField = e.target;
+  showFormatToolbar(activeField);
+  syncToolbar(activeField);
+}
+
+function onFieldBlur(e) {
+  setTimeout(() => {
+    const active = document.activeElement;
+    if (active && (active.hasAttribute('data-field') || active.closest('#format-toolbar'))) return;
+    hideFormatToolbar();
+    activeField = null;
+  }, 120);
+}
+
+function showFormatToolbar(el) {
+  const tb = $('format-toolbar');
+  const rect = el.getBoundingClientRect();
+  const tbRect = tb.getBoundingClientRect();
+  let top = rect.top - 44;
+  if (top < 8) top = rect.bottom + 8;
+  tb.style.top = top + 'px';
+  tb.style.left = (rect.left + rect.width / 2) + 'px';
+  tb.classList.remove('hidden');
+}
+
+function hideFormatToolbar() {
+  $('format-toolbar').classList.add('hidden');
+}
+
+function syncToolbar(el) {
+  const cs = getComputedStyle(el);
+  // Font family
+  $('ft-font').value = matchFontOption(el.style.fontFamily || cs.fontFamily);
+  // Size
+  const rawSize = el.style.fontSize || cs.fontSize;
+  $('ft-size').value = rawSize.includes('pt') ? parseInt(rawSize) : Math.round(parseFloat(rawSize) * 0.75);
+  // Bold
+  const isBold = el.style.fontWeight === 'bold' || parseInt(cs.fontWeight) >= 700;
+  $('ft-bold').classList.toggle('active', isBold);
+  // Italic
+  $('ft-italic').classList.toggle('active', (el.style.fontStyle || cs.fontStyle) === 'italic');
+  // Uppercase
+  $('ft-upper').classList.toggle('active', (el.style.textTransform || cs.textTransform) === 'uppercase');
+  // Align
+  const align = el.style.textAlign || cs.textAlign || 'center';
+  $('ft-align-left').classList.toggle('active', align === 'left' || align === 'start');
+  $('ft-align-center').classList.toggle('active', align === 'center');
+  $('ft-align-right').classList.toggle('active', align === 'right' || align === 'end');
+  // Color
+  $('ft-color').value = rgbToHex(el.style.color || cs.color);
+}
+
+function matchFontOption(ff) {
+  const f = ff.toLowerCase();
+  if (f.includes('times')) return "'Times New Roman', Times, serif";
+  if (f.includes('garamond')) return "Garamond, 'EB Garamond', serif";
+  if (f.includes('georgia')) return "Georgia, serif";
+  if (f.includes('arial')) return "Arial, Helvetica, sans-serif";
+  if (f.includes('calibri')) return "Calibri, 'Segoe UI', sans-serif";
+  if (f.includes('inter')) return "'Inter', sans-serif";
+  return "'Times New Roman', Times, serif";
+}
+
+function rgbToHex(c) {
+  if (!c) return '#000000';
+  if (c.startsWith('#')) return c.length === 7 ? c : '#000000';
+  const m = c.match(/\d+/g);
+  if (!m || m.length < 3) return '#000000';
+  return '#' + m.slice(0, 3).map(x => (+x).toString(16).padStart(2, '0')).join('');
+}
+
+function applyFT(prop, value) {
+  if (!activeField) return;
+  activeField.style[prop] = value;
+  syncToolbar(activeField);
+}
+
+function toggleFT(prop, onVal, offVal) {
+  if (!activeField) return;
+  const cs = getComputedStyle(activeField);
+  const current = activeField.style[prop] || cs[prop];
+  const isOn = (prop === 'fontWeight') ? (current === 'bold' || parseInt(current) >= 700) : current === onVal;
+  activeField.style[prop] = isOn ? offVal : onVal;
+  syncToolbar(activeField);
+}
+
+/* ═══════════════════════════════════════
+   GLOBAL STYLE UPDATE
+   ═══════════════════════════════════════ */
+function updateGlobal() {
+  const font = $('f-font').value;
+  const fSize = $('f-font-size').value;
+  const lineH = $('f-line-h').value;
+  const paraSp = $('f-para-sp').value;
+  const indent = $('f-indent').value;
+  const just = $('f-justified').checked;
+
+  $('v-fs').textContent = fSize;
+  $('v-lh').textContent = lineH;
+  $('v-ps').textContent = paraSp;
+  $('v-indent').textContent = indent;
+
+  a4.style.fontFamily = font;
+  a4.style.fontSize = fSize + 'pt';
+  a4.style.lineHeight = lineH;
+  a4.style.textAlign = just ? 'justify' : 'left';
+
+  document.querySelectorAll('.doc-content p').forEach(p => {
+    p.style.marginBottom = paraSp + 'pt';
+    p.style.textIndent = indent + 'mm';
+  });
+
+  const mLat = $('f-m-lat').value;
+  const mTb = $('f-m-tb').value;
+  $('v-ml').textContent = mLat;
+  $('v-mt').textContent = mTb;
+  a4.style.paddingLeft = Math.round(mLat * 3.78) + 'px';
+  a4.style.paddingRight = Math.round(mLat * 3.78) + 'px';
+  a4.style.paddingTop = Math.round(mTb * 3.78) + 'px';
+  a4.style.paddingBottom = Math.round(mTb * 3.78) + 'px';
+
+  a4.style.color = $('f-color-text').value;
+  a4.style.background = $('f-color-bg').value;
+
+  const divColor = $('f-div-color').value;
+  const divW = $('f-div-w').value;
+  $('v-dw').textContent = divW;
+  $('doc-divider').style.borderTopColor = divColor;
+  $('doc-divider').style.borderTopWidth = divW + 'px';
+
+  if ($('f-left-border').checked) {
+    a4.classList.add('has-left-border');
+    a4.style.borderLeftColor = $('f-left-border-color').value;
+  } else {
+    a4.classList.remove('has-left-border');
+  }
+
+  $('footer-line-hr').style.display = $('f-footer-line').checked ? '' : 'none';
+}
+
+function updateWatermark() {
+  const v = $('wm-opacity').value;
+  $('wm-opacity-val').textContent = v;
+  $('doc-wm').style.opacity = v / 100;
+}
+
+/* ═══════════════════════════════════════
+   LOGO SIZE
+   ═══════════════════════════════════════ */
+const LOGO_BASE = { left: {h:74,w:78}, right: {h:74,w:78}, partido: {h:42,w:110}, signature: {h:60,w:120} };
+function updateLogoSize(key) {
+  const sliderMap = { left: 'logo-left-size', right: 'logo-right-size', partido: 'logo-partido-size', signature: 'logo-sign-size' };
+  const valMap = { left: 'v-left-size', right: 'v-right-size', partido: 'v-partido-size', signature: 'v-sign-size' };
+  const imgMap = { left: 'doc-logo-left', right: 'doc-logo-right', partido: 'doc-partido-footer', signature: 'doc-signature-img' };
+  const val = +$(sliderMap[key]).value;
+  $(valMap[key]).textContent = val;
+  const base = LOGO_BASE[key];
+  const img = $(imgMap[key]);
+  if (img) {
+    img.style.maxHeight = Math.round(base.h * val / 100) + 'px';
+    img.style.maxWidth  = Math.round(base.w * val / 100) + 'px';
+  }
+}
+
+/* ═══════════════════════════════════════
+   UPLOAD DE LOGOS
+   ═══════════════════════════════════════ */
+function triggerUpload(key) {
+  const boxId = key === 'left' ? 'box-logo-left' : key === 'right' ? 'box-logo-right' : key === 'partido' ? 'box-partido' : 'box-signature';
+  document.querySelector('#' + boxId + ' input[type="file"]').click();
+}
+
+function handleUpload(input, key) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const dataUrl = e.target.result;
+    logos[key] = dataUrl;
+    // Panel preview
+    const prevId = key === 'left' ? 'prev-logo-left' : key === 'right' ? 'prev-logo-right' :
+                   key === 'partido' ? 'prev-partido' : key === 'watermark' ? 'prev-watermark' : 'prev-signature';
+    $(prevId).src = dataUrl;
+    // Document preview
+    if (key === 'left') $('doc-logo-left').src = dataUrl;
+    if (key === 'right') $('doc-logo-right').src = dataUrl;
+    if (key === 'partido') $('doc-partido-footer').src = dataUrl;
+    if (key === 'watermark') $('doc-wm-img').src = dataUrl;
+    if (key === 'signature') $('doc-signature-img').src = dataUrl;
+    showToast('Imagem carregada', 'success');
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ═══════════════════════════════════════
+   INSERIR VARIÁVEL
+   ═══════════════════════════════════════ */
+function insertVar(varName) {
+  const area = $('content-area');
+  area.focus();
+  const sel = window.getSelection();
+  let range;
+  if (sel.rangeCount > 0) {
+    range = sel.getRangeAt(0);
+    if (!area.contains(range.commonAncestorContainer)) {
+      range = document.createRange();
+      range.selectNodeContents(area);
+      range.collapse(false);
+    }
+  } else {
+    range = document.createRange();
+    range.selectNodeContents(area);
+    range.collapse(false);
+  }
+  range.deleteContents();
+  const span = document.createElement('span');
+  span.className = 'tpl-var';
+  span.contentEditable = 'false';
+  span.dataset.var = varName;
+  span.textContent = '{{' + varName + '}}';
+  range.insertNode(span);
+  const space = document.createTextNode('\u00A0');
+  range.setStartAfter(span);
+  range.insertNode(space);
+  range.setStartAfter(space);
+  range.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(range);
+  showToast('Variável inserida', 'info');
+}
+
+/* ═══════════════════════════════════════
+   PRESETS
+   ═══════════════════════════════════════ */
+const PRESETS = {
+  classico: { text: '#000000', bg: '#ffffff', div: '#000000' },
+  creme:    { text: '#3e2c1c', bg: '#faf5ef', div: '#8b6f47' },
+  azul:     { text: '#1e293b', bg: '#f0f5ff', div: '#2563eb' },
+  ambar:    { text: '#451a03', bg: '#fffbeb', div: '#b45309' },
+};
+
+function applyPreset(name) {
+  const p = PRESETS[name];
+  if (!p) return;
+  $('f-color-text').value = p.text;
+  $('f-color-bg').value = p.bg;
+  $('f-div-color').value = p.div;
+  updateGlobal();
+  showToast('Preset aplicado', 'info');
+}
+
+/* ═══════════════════════════════════════
+   SERIALIZAÇÃO
+   ═══════════════════════════════════════ */
+function serializeContent() {
+  const clone = $('content-area').cloneNode(true);
+  clone.querySelectorAll('.tpl-var').forEach(s => s.replaceWith('{{' + s.dataset.var + '}}'));
+  return clone.innerHTML;
+}
+
+function renderVariablesInContent(html) {
+  return html.replace(/\{\{(\w+)\}\}/g, (m, v) =>
+    '<span class="tpl-var" contenteditable="false" data-var="' + v + '">{{' + v + '}}</span>'
+  );
+}
+
+function collectFieldStyles() {
+  const styles = {};
+  document.querySelectorAll('[data-field]').forEach(el => {
+    const field = el.getAttribute('data-field');
+    styles[field] = {
+      text: el.textContent,
+      fontFamily: el.style.fontFamily || '',
+      fontSize: el.style.fontSize || '',
+      fontWeight: el.style.fontWeight || '',
+      fontStyle: el.style.fontStyle || '',
+      textAlign: el.style.textAlign || '',
+      textTransform: el.style.textTransform || '',
+      letterSpacing: el.style.letterSpacing || '',
+      color: el.style.color || '',
+      marginTop: el.style.marginTop || '',
+    };
+  });
+  return styles;
+}
+
+function applyFieldStyles(styles) {
+  if (!styles) return;
+  Object.entries(styles).forEach(([field, s]) => {
+    const el = document.querySelector('[data-field="' + field + '"]');
+    if (!el) return;
+    if (s.text) el.textContent = s.text;
+    if (s.fontFamily) el.style.fontFamily = s.fontFamily;
+    if (s.fontSize) el.style.fontSize = s.fontSize;
+    if (s.fontWeight) el.style.fontWeight = s.fontWeight;
+    if (s.fontStyle) el.style.fontStyle = s.fontStyle;
+    if (s.textAlign) el.style.textAlign = s.textAlign;
+    if (s.textTransform) el.style.textTransform = s.textTransform;
+    if (s.letterSpacing) el.style.letterSpacing = s.letterSpacing;
+    if (s.color) el.style.color = s.color;
+    if (s.marginTop) el.style.marginTop = s.marginTop;
+  });
+}
+
+/* ═══════════════════════════════════════
+   COLLECT / APPLY STATE
+   ═══════════════════════════════════════ */
+function collectState() {
+  const hs = collectFieldStyles();
+  return {
+    version: 2,
+    institution: {
+      name:     (hs['inst-name'] || {}).text || 'Câmara Municipal de Guarujá',
+      title:    (hs['inst-title'] || {}).text || 'ESTADO DE SÃO PAULO',
+      subtitle: (hs['inst-subtitle'] || {}).text || 'Márcio Nabor Tardelli',
+      gabinete: (hs['gabinete'] || {}).text || '',
+      email:    (hs['email'] || {}).text || '',
+    },
+    vereador: {
+      nome:         (hs['signer-name'] || {}).text || 'MÁRCIO NABOR TARDELLI',
+      cargo:        (hs['signer-cargo'] || {}).text || 'Vereador',
+      salaLocal:    (hs['sala'] || {}).text || 'Sala Alberto Santos Dumont',
+      nomePrefeito: $('f-prefeito').value,
+    },
+    logos: {
+      left: logos.left || null,
+      leftSize: +$('logo-left-size').value,
+      right: logos.right || null,
+      rightSize: +$('logo-right-size').value,
+      partido: logos.partido || null,
+      partidoSize: +$('logo-partido-size').value,
+      watermark: logos.watermark || null,
+      watermarkOpacity: +$('wm-opacity').value,
+      signature: logos.signature || null,
+      signatureSize: +$('logo-sign-size').value,
+    },
+    typography: {
+      fontFamily:       $('f-font').value,
+      fontSize:         +$('f-font-size').value,
+      lineHeight:       +$('f-line-h').value,
+      paragraphSpacing: +$('f-para-sp').value,
+      paragraphIndent:  +$('f-indent').value,
+      textJustified:    $('f-justified').checked,
+    },
+    colors: {
+      text:             $('f-color-text').value,
+      background:       $('f-color-bg').value,
+      divider:          $('f-div-color').value,
+      dividerWidth:     +$('f-div-w').value,
+      leftBorder:       $('f-left-border').checked,
+      leftBorderColor:  $('f-left-border-color').value,
+      footerLine:       $('f-footer-line').checked,
+    },
+    layout: {
+      marginLateral:   +$('f-m-lat').value,
+      marginTopBottom: +$('f-m-tb').value,
+    },
+    headerStyles: hs,
+    content: serializeContent(),
+  };
+}
+
+function applyState(s) {
+  if (!s) return;
+  // Logos
+  if (s.logos) {
+    logos = {
+      left: s.logos.left || '',
+      right: s.logos.right || '',
+      partido: s.logos.partido || '',
+      watermark: s.logos.watermark || '',
+      signature: s.logos.signature || '',
+    };
+    $('prev-logo-left').src = logos.left;
+    $('prev-logo-right').src = logos.right;
+    $('prev-partido').src = logos.partido;
+    $('prev-watermark').src = logos.watermark;
+    $('prev-signature').src = logos.signature;
+    $('doc-logo-left').src = logos.left;
+    $('doc-logo-right').src = logos.right;
+    $('doc-partido-footer').src = logos.partido || logos.right || '';
+    $('doc-wm-img').src = logos.watermark;
+    $('doc-signature-img').src = logos.signature;
+    $('wm-opacity').value = s.logos.watermarkOpacity || 8;
+    updateWatermark();
+    // Restore logo sizes
+    if (s.logos.leftSize) { $('logo-left-size').value = s.logos.leftSize; updateLogoSize('left'); }
+    if (s.logos.rightSize) { $('logo-right-size').value = s.logos.rightSize; updateLogoSize('right'); }
+    if (s.logos.partidoSize) { $('logo-partido-size').value = s.logos.partidoSize; updateLogoSize('partido'); }
+    if (s.logos.signatureSize) { $('logo-sign-size').value = s.logos.signatureSize; updateLogoSize('signature'); }
+  }
+  // Typography
+  if (s.typography) {
+    $('f-font').value = s.typography.fontFamily || "'Times New Roman', Times, serif";
+    $('f-font-size').value = s.typography.fontSize || 12;
+    $('f-line-h').value = s.typography.lineHeight || 1.5;
+    $('f-para-sp').value = s.typography.paragraphSpacing || 12;
+    $('f-indent').value = s.typography.paragraphIndent || 0;
+    $('f-justified').checked = s.typography.textJustified !== false;
+  }
+  // Colors
+  if (s.colors) {
+    $('f-color-text').value = s.colors.text || '#000000';
+    $('f-color-bg').value = s.colors.background || '#ffffff';
+    $('f-div-color').value = s.colors.divider || '#000000';
+    $('f-div-w').value = s.colors.dividerWidth || 2;
+    $('f-left-border').checked = !!s.colors.leftBorder;
+    $('f-left-border-color').value = s.colors.leftBorderColor || '#1a365d';
+    $('f-footer-line').checked = s.colors.footerLine !== false;
+  }
+  // Layout
+  if (s.layout) {
+    $('f-m-lat').value = s.layout.marginLateral || 25;
+    $('f-m-tb').value = s.layout.marginTopBottom || 25;
+  }
+  // Prefeito
+  if (s.vereador) {
+    $('f-prefeito').value = s.vereador.nomePrefeito || '';
+  }
+  // Per-element styles (v2 format)
+  if (s.headerStyles) {
+    applyFieldStyles(s.headerStyles);
+  } else {
+    // Backward compat: load from v1 institution/vereador fields
+    if (s.institution) {
+      setFieldText('inst-name', s.institution.name);
+      setFieldText('inst-title', s.institution.title);
+      setFieldText('inst-subtitle', s.institution.subtitle);
+      setFieldText('gabinete', s.institution.gabinete);
+      setFieldText('email', s.institution.email);
+    }
+    if (s.vereador) {
+      setFieldText('signer-name', s.vereador.nome);
+      setFieldText('signer-cargo', s.vereador.cargo);
+      setFieldText('sala', s.vereador.salaLocal);
+    }
+  }
+  // Content
+  if (s.content) {
+    $('content-area').innerHTML = renderVariablesInContent(s.content);
+  }
+}
+
+function setFieldText(field, text) {
+  if (!text) return;
+  const el = document.querySelector('[data-field="' + field + '"]');
+  if (el) el.textContent = text;
+}
+
+/* ═══════════════════════════════════════
+   SAVE / LOAD
+   ═══════════════════════════════════════ */
+async function saveTemplate() {
+  const state = collectState();
+  const name = ($('template-name') && $('template-name').value) ? $('template-name').value.trim() : 'Template Padrão';
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+  try {
+    await fetch('/api/template', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...state, _name: name }),
+    });
+  } catch {}
+  showToast('Template salvo: ' + name, 'success');
+}
+
+async function saveAsNew() {
+  const state = collectState();
+  const name = ($('template-name') && $('template-name').value) ? $('template-name').value.trim() : 'Novo Template';
+  try {
+    await fetch('/api/template', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...state, _name: name, _createNew: true }),
+    });
+  } catch {}
+  showToast('Novo template criado: ' + name, 'success');
+}
+
+function loadTemplate() {
+  // Try localStorage first (v2)
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) { applyState(JSON.parse(raw)); updateGlobal(); return; }
+  } catch {}
+  // Try v1 localStorage
+  try {
+    const raw = localStorage.getItem('indicacoes_template_v1');
+    if (raw) { applyState(JSON.parse(raw)); updateGlobal(); return; }
+  } catch {}
+  // API fallback
+  fetch('/api/template').then(r => r.ok ? r.json() : null).then(data => {
+    if (data && data.settings) {
+      applyState(typeof data.settings === 'string' ? JSON.parse(data.settings) : data.settings);
+      if (data.name && $('template-name')) $('template-name').value = data.name;
+      updateGlobal();
+    }
+  }).catch(() => {});
+}
+
+function exportTemplate() {
+  const state = collectState();
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'template_indicacao.json'; a.click();
+  URL.revokeObjectURL(url);
+  showToast('Template exportado', 'success');
+}
+
+/* ═══════════════════════════════════════
+   PREVIEW
+   ═══════════════════════════════════════ */
+function openPreview() {
+  const clone = a4.cloneNode(true);
+  clone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+  clone.querySelectorAll('[data-field]').forEach(el => {
+    el.style.border = 'none'; el.style.padding = '0'; el.style.margin = '0';
+  });
+  clone.querySelectorAll('.header-logo-left,.header-logo-right,.partido-logo-footer').forEach(el => {
+    el.style.borderColor = 'transparent'; el.style.cursor = 'default';
+  });
+  $('preview-container').innerHTML = '';
+  $('preview-container').appendChild(clone);
+  $('modal-preview').classList.remove('hidden');
+}
+
+function closePreview() { $('modal-preview').classList.add('hidden'); }
+
+/* ═══════════════════════════════════════
+   TOAST
+   ═══════════════════════════════════════ */
+function showToast(msg, type) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + (type || 'info');
+  setTimeout(() => t.classList.add('hidden'), 2500);
+}
+
+/* ═══════════════════════════════════════
+   KEYBOARD
+   ═══════════════════════════════════════ */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closePreview();
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    saveTemplate();
+  }
+});
+</script>
+</body>
+</html>
