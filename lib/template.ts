@@ -118,10 +118,10 @@ export const DEFAULT_SETTINGS: TemplateSettings = {
 // ─────────────────────────────────────────────
 
 /** Carrega o template ativo. Retorna defaults se nenhum for encontrado. */
-export async function getActiveTemplate(): Promise<TemplateSettings> {
+export async function getActiveTemplate(tenantId?: string): Promise<TemplateSettings> {
   try {
     const record = await prisma.template.findFirst({
-      where: { isActive: true },
+      where: { isActive: true, ...(tenantId ? { tenantId } : {}) },
       orderBy: { updatedAt: 'desc' },
     });
 
@@ -139,9 +139,11 @@ export async function getActiveTemplate(): Promise<TemplateSettings> {
 }
 
 /** Carrega um template pelo ID. Retorna defaults se não encontrado. */
-export async function getTemplateById(id: string): Promise<TemplateSettings> {
+export async function getTemplateById(id: string, tenantId?: string): Promise<TemplateSettings> {
   try {
-    const record = await prisma.template.findUnique({ where: { id } });
+    const record = await prisma.template.findUnique({
+      where: { id, ...(tenantId ? { tenantId } : {}) },
+    });
     if (record) {
       const parsed = JSON.parse(record.settings) as Partial<TemplateSettings>;
       return deepMerge(
@@ -156,9 +158,9 @@ export async function getTemplateById(id: string): Promise<TemplateSettings> {
 }
 
 /** Retorna o template pelo ID (se fornecido) ou o template ativo. */
-export async function getTemplate(templateId?: string): Promise<TemplateSettings> {
-  if (templateId) return getTemplateById(templateId);
-  return getActiveTemplate();
+export async function getTemplate(templateId?: string, tenantId?: string): Promise<TemplateSettings> {
+  if (templateId) return getTemplateById(templateId, tenantId);
+  return getActiveTemplate(tenantId);
 }
 
 /** Salva/atualiza o template ativo (ou cria um novo com o nome dado). */
@@ -166,18 +168,19 @@ export async function saveActiveTemplate(
   settings: Partial<TemplateSettings>,
   name?: string,
   createNew?: boolean,
+  tenantId?: string,
 ): Promise<string> {
   const json = JSON.stringify(settings);
 
   if (createNew) {
     const record = await prisma.template.create({
-      data: { settings: json, name: name || 'Novo Template', isActive: false },
+      data: { settings: json, name: name || 'Novo Template', isActive: false, tenantId: tenantId ?? '' },
     });
     return record.id;
   }
 
   const existing = await prisma.template.findFirst({
-    where: { isActive: true },
+    where: { isActive: true, ...(tenantId ? { tenantId } : {}) },
     orderBy: { updatedAt: 'desc' },
   });
 
@@ -190,7 +193,7 @@ export async function saveActiveTemplate(
   }
 
   const record = await prisma.template.create({
-    data: { settings: json, name: name || 'Template Padrão' },
+    data: { settings: json, name: name || 'Template Padrão', tenantId: tenantId ?? '' },
   });
   return record.id;
 }

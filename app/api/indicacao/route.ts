@@ -2,12 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { indicacaoPipeline } from '@/lib/pipeline';
 import { prisma } from '@/lib/db';
 import { isDemoMode } from '@/lib/llm';
+import { auth } from '@/auth';
 import type { IndicacaoRequest, IndicacaoResponse } from '@/lib/types';
 
 export const maxDuration = 60; // 60s timeout para LLM
 
 export async function POST(req: NextRequest): Promise<NextResponse<IndicacaoResponse>> {
   try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ status: 'error', error: 'Não autenticado.' }, { status: 401 });
+    }
+
+    const tenantId = session.user.tenantId;
+    if (!tenantId) {
+      return NextResponse.json({ status: 'error', error: 'Usuário sem tenant vinculado.' }, { status: 403 });
+    }
+
     const body: IndicacaoRequest & { templateId?: string } = await req.json();
     const { texto, complementos, templateId } = body;
 
@@ -44,7 +55,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<IndicacaoResp
       });
     }
 
-    // ── Persistência no SQLite ────────────────────────────────
+    // ── Persistência ──────────────────────────────────────────
     const { textoFinal, extracted } = result;
 
     const record = await prisma.indicacao.create({
@@ -57,6 +68,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<IndicacaoResp
         logradouro:    extracted.logradouro || '',
         numero:        extracted.numero     || null,
         cep:           extracted.cep        || null,
+        tenantId,
       },
     });
 

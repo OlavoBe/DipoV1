@@ -6,9 +6,45 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+// ─────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────
+
+enum Plano {
+  DEMO
+  TRIAL
+  PRO_ASSESSOR
+  PRO_GABINETE
+  CAMARA
+}
+
+enum Papel {
+  ADMIN
+  ASSESSOR
+}
+
+// ─────────────────────────────────────────────
+// Tenant
+// ─────────────────────────────────────────────
+
+model Tenant {
+  id         String      @id @default(cuid())
+  nome       String
+  plano      Plano       @default(DEMO)
+  criadoEm  DateTime    @default(now())
+
+  indicacoes Indicacao[]
+  templates  Template[]
+  users      User[]
+}
+
+// ─────────────────────────────────────────────
+// Indicacao
+// ─────────────────────────────────────────────
 
 model Indicacao {
   id            String   @id @default(cuid())
@@ -21,7 +57,14 @@ model Indicacao {
   logradouro    String
   numero        String?
   cep           String?
+
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
 }
+
+// ─────────────────────────────────────────────
+// Template
+// ─────────────────────────────────────────────
 
 model Template {
   id        String   @id @default(cuid())
@@ -30,4 +73,83 @@ model Template {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+}
+
+// ─────────────────────────────────────────────
+// User  (campos NextAuth + campos do sistema)
+// ─────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  // NextAuth required
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  // Sistema
+  nome          String?
+  papel         Papel     @default(ASSESSOR)
+  criadoEm     DateTime  @default(now())
+
+  // Tenant — opcional: usuário existe antes de ser vinculado a um tenant
+  tenantId      String?
+  tenant        Tenant?   @relation(fields: [tenantId], references: [id])
+
+  accounts      Account[]
+  sessions      Session[]
+}
+
+// ─────────────────────────────────────────────
+// Account  (NextAuth)
+// ─────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  userId            String
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+// ─────────────────────────────────────────────
+// Session  (NextAuth + campos do sistema)
+// ─────────────────────────────────────────────
+
+model Session {
+  id           String   @id @default(cuid())
+  // NextAuth required
+  sessionToken String   @unique
+  expires      DateTime
+  // Sistema
+  deviceToken  String   @default("")
+  criadoEm    DateTime @default(now())
+
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────
+// VerificationToken  (NextAuth — magic link)
+// ─────────────────────────────────────────────
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
 }

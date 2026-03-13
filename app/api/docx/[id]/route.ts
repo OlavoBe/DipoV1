@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { generateDocx } from '@/lib/docx';
 import { buildFilename } from '@/lib/pdf';
+import { auth } from '@/auth';
 
 export const maxDuration = 30;
 
@@ -10,11 +11,17 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
+    }
+    const tenantId = session.user.tenantId ?? undefined;
+
     const { id } = await params;
     const templateId = req.nextUrl.searchParams.get('templateId') ?? undefined;
 
     const record = await prisma.indicacao.findUnique({
-      where: { id },
+      where: { id, ...(tenantId ? { tenantId } : {}) },
       select: { textoFinal: true, tipoServico: true, bairro: true },
     });
 
