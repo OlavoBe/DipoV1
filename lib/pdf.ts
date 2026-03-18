@@ -1,5 +1,25 @@
-import { chromium } from 'playwright';
 import { getTemplate, type TemplateSettings } from './template';
+import type { Browser } from 'playwright-core';
+
+// ─────────────────────────────────────────────
+// Lança o browser correto por ambiente:
+// • Vercel/produção → @sparticuz/chromium (serverless-safe)
+// • Dev local       → playwright nativo (binário local)
+// ─────────────────────────────────────────────
+
+async function launchBrowser(): Promise<Browser> {
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    const chromium = (await import('@sparticuz/chromium')).default;
+    const { chromium: pw } = await import('playwright-core');
+    return pw.launch({
+      args: chromium.args,
+      executablePath: await chromium.executablePath(),
+      headless: true,
+    });
+  }
+  const { chromium: pw } = await import('playwright');
+  return pw.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+}
 
 // ─────────────────────────────────────────────
 // Helpers de texto
@@ -158,10 +178,7 @@ function buildHtml(textoFinal: string, t: TemplateSettings, fontSize: number, de
 // ─────────────────────────────────────────────
 
 async function generatePdfInternal(textoFinal: string, t: ReturnType<typeof getTemplate> extends Promise<infer R> ? R : never, demo: boolean): Promise<Buffer> {
-  const browser = await chromium.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  });
+  const browser = await launchBrowser();
 
   try {
     const page = await browser.newPage();
