@@ -11,7 +11,17 @@
       "Bash(npm install docx)",
       "Bash(npx tsc --noEmit)",
       "Bash(npx prisma migrate dev --name add_template)",
-      "Bash(npm install zod --save)"
+      "Bash(npm install zod --save)",
+      "Bash(ls -la \"/c/Users/Olavo Bernardo/DipoV1/data/indicacoes_exemplo/\" && find \"/c/Users/Olavo Bernardo/DipoV1/data/indicacoes_exemplo/\" -type f -name \"*.json\" | head -1 | xargs cat)",
+      "Bash(cd \"C:/Users/Olavo Bernardo/DipoV1\" && npx prisma migrate dev --name add_demo_uso 2>&1)",
+      "Bash(cd \"C:/Users/Olavo Bernardo/DipoV1\" && npx prisma migrate dev --name add_demo_uso --create-only 2>&1 && npx prisma migrate deploy 2>&1)",
+      "Bash(cd \"C:/Users/Olavo Bernardo/DipoV1\" && npx prisma migrate deploy 2>&1)",
+      "Bash(cd:*)",
+      "Bash(taskkill:*)",
+      "WebFetch(domain:ngrok.com)",
+      "Bash(npx prisma:*)",
+      "Bash(node -e \":*)",
+      "Bash(npx shadcn@latest init -d)"
     ]
   }
 }

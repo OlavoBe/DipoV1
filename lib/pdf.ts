@@ -26,7 +26,7 @@ function textToHtml(text: string): string {
 // Template HTML — alimentado pelo TemplateSettings
 // ─────────────────────────────────────────────
 
-function buildHtml(textoFinal: string, t: TemplateSettings, fontSize: number): string {
+function buildHtml(textoFinal: string, t: TemplateSettings, fontSize: number, demo = false): string {
   const htmlContent = textToHtml(textoFinal);
   const r = Math.round;
 
@@ -53,6 +53,14 @@ function buildHtml(textoFinal: string, t: TemplateSettings, fontSize: number): s
     ? `<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;opacity:${t.logos.watermarkOpacity / 100};z-index:0"><img src="${t.logos.watermark}" style="max-height:400px;max-width:400px;object-fit:contain"></div>`
     : '';
 
+  const demoWatermarkTag = demo
+    ? `<div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:64pt;font-weight:bold;color:rgba(0,0,0,0.06);white-space:nowrap;pointer-events:none;z-index:999;letter-spacing:6pt;text-transform:uppercase;font-family:sans-serif">DEMONSTRAÇÃO</div>`
+    : '';
+
+  const demoFooterTag = demo
+    ? `<div style="position:fixed;bottom:8mm;left:0;right:0;text-align:center;font-size:8pt;color:#999;font-family:sans-serif">Gerado com Dipo · dipo.com.br</div>`
+    : '';
+
   const mLat = t.layout.marginLateral + 'mm';
   const mTb  = t.layout.marginTopBottom + 'mm';
   const font = t.typography.fontFamily;
@@ -76,7 +84,7 @@ function buildHtml(textoFinal: string, t: TemplateSettings, fontSize: number): s
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Indicação Legislativa</title>
+  <title>${demo ? 'Indicação Legislativa (Demo)' : 'Indicação Legislativa'}</title>
   <style>
     @page { size: A4; margin: ${mTb} ${mLat} ${mTb} ${mLat}; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -122,6 +130,8 @@ function buildHtml(textoFinal: string, t: TemplateSettings, fontSize: number): s
 <body>
   <div class="page">
     ${watermarkTag}
+    ${demoWatermarkTag}
+    ${demoFooterTag}
     <div class="header">
       <div class="header-logo">${logoLeftTag}</div>
       <div class="header-info">
@@ -147,9 +157,7 @@ function buildHtml(textoFinal: string, t: TemplateSettings, fontSize: number): s
 // Geração do PDF
 // ─────────────────────────────────────────────
 
-export async function generatePdf(textoFinal: string, templateId?: string): Promise<Buffer> {
-  const t = await getTemplate(templateId);
-
+async function generatePdfInternal(textoFinal: string, t: ReturnType<typeof getTemplate> extends Promise<infer R> ? R : never, demo: boolean): Promise<Buffer> {
   const browser = await chromium.launch({
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
@@ -167,7 +175,7 @@ export async function generatePdf(textoFinal: string, templateId?: string): Prom
     const mTb  = t.layout.marginTopBottom + 'mm';
 
     for (const fontSize of fontSizes) {
-      const html = buildHtml(textoFinal, t, fontSize);
+      const html = buildHtml(textoFinal, t, fontSize, demo);
       await page.setContent(html, { waitUntil: 'networkidle' });
 
       const pageCount = await page.evaluate(() => {
@@ -192,6 +200,16 @@ export async function generatePdf(textoFinal: string, templateId?: string): Prom
   } finally {
     await browser.close();
   }
+}
+
+export async function generatePdf(textoFinal: string, templateId?: string): Promise<Buffer> {
+  const t = await getTemplate(templateId);
+  return generatePdfInternal(textoFinal, t, false);
+}
+
+export async function generatePdfDemo(textoFinal: string): Promise<Buffer> {
+  const t = await getTemplate();
+  return generatePdfInternal(textoFinal, t, true);
 }
 
 // ─────────────────────────────────────────────

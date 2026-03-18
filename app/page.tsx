@@ -15,7 +15,8 @@ type UIState =
   | { phase: 'loading'; message: string }
   | { phase: 'incomplete'; perguntas: string[]; extracted: ExtractedData }
   | { phase: 'success'; textoFinal: string; recordId: string; copied: boolean }
-  | { phase: 'error'; message: string };
+  | { phase: 'error'; message: string }
+  | { phase: 'limite'; motivo: string };
 
 const CATEGORIA_LABELS: Record<IndicacaoCategoria, string> = {
   servico_urbano:    'Serviços Urbanos',
@@ -45,6 +46,7 @@ export default function HomePage() {
   const [complementos, setComplementos] = useState<Record<string, string>>({});
   const [templates, setTemplates] = useState<TemplateInfo[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [restantes, setRestantes] = useState<number | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -72,7 +74,18 @@ export default function HomePage() {
         body: JSON.stringify({ texto: textoInput, complementos: complementosInput, templateId: selectedTemplateId || undefined }),
       });
 
-      const data: IndicacaoResponse = await res.json();
+      const data: IndicacaoResponse & {
+        error?: string;
+        motivo?: string;
+        restantes?: number;
+        upgrade_url?: string;
+      } = await res.json();
+
+      // Limite de plano
+      if (res.status === 402) {
+        setState({ phase: 'limite', motivo: data.motivo ?? 'Limite do plano atingido.' });
+        return;
+      }
 
       if (data.status === 'incomplete') {
         setState({
@@ -84,6 +97,8 @@ export default function HomePage() {
       }
 
       if (data.status === 'success') {
+        // Atualiza contador de restantes se vier na resposta
+        if (typeof data.restantes === 'number') setRestantes(data.restantes);
         setState({
           phase: 'success',
           textoFinal: data.texto_final!,
@@ -121,6 +136,7 @@ export default function HomePage() {
     setState({ phase: 'idle' });
     setTexto('');
     setComplementos({});
+    setRestantes(null);
   }
 
   const isLoading = state.phase === 'loading';
@@ -134,6 +150,35 @@ export default function HomePage() {
           Descreva o problema em texto livre. O sistema gera automaticamente o texto oficial e o PDF para protocolo.
         </p>
       </div>
+
+      {/* Banner de limite atingido */}
+      {state.phase === 'limite' && (
+        <div className="rounded-lg bg-yellow-50 border border-yellow-300 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-yellow-800">
+              Você atingiu o limite do plano gratuito (3/semana)
+            </p>
+            <p className="text-xs text-yellow-700 mt-0.5">{state.motivo}</p>
+          </div>
+          <a
+            href="/upgrade"
+            className="shrink-0 px-4 py-2 bg-yellow-500 text-white text-sm font-semibold rounded-lg hover:bg-yellow-600 transition-colors text-center"
+          >
+            Ver planos
+          </a>
+        </div>
+      )}
+
+      {/* Contador discreto de indicações restantes */}
+      {restantes !== null && restantes <= 2 && (
+        <div className="text-xs text-amber-600 text-right">
+          {restantes === 0
+            ? 'Nenhuma indicação restante esta semana'
+            : `${restantes} indicaç${restantes === 1 ? 'ão restante' : 'ões restantes'} esta semana`}
+          {' — '}
+          <a href="/upgrade" className="underline font-medium">fazer upgrade</a>
+        </div>
+      )}
 
       {/* Seletor de Template */}
       {templates.length > 0 && (

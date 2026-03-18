@@ -3,11 +3,12 @@ import { indicacaoPipeline } from '@/lib/pipeline';
 import { prisma } from '@/lib/db';
 import { isDemoMode } from '@/lib/llm';
 import { auth } from '@/auth';
+import { checkLimite } from '@/lib/planos';
 import type { IndicacaoRequest, IndicacaoResponse } from '@/lib/types';
 
 export const maxDuration = 60; // 60s timeout para LLM
 
-export async function POST(req: NextRequest): Promise<NextResponse<IndicacaoResponse>> {
+export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     const session = await auth();
     if (!session?.user) {
@@ -26,6 +27,20 @@ export async function POST(req: NextRequest): Promise<NextResponse<IndicacaoResp
       return NextResponse.json(
         { status: 'error', error: 'Texto muito curto. Descreva o problema com mais detalhes.' },
         { status: 400 },
+      );
+    }
+
+    // Verificar limite do plano
+    const limite = await checkLimite(tenantId);
+    if (!limite.permitido) {
+      return NextResponse.json(
+        {
+          error: 'limite_atingido',
+          motivo: limite.motivo ?? 'Limite do plano atingido.',
+          restantes: 0,
+          upgrade_url: '/upgrade',
+        },
+        { status: 402 },
       );
     }
 

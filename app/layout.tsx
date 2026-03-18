@@ -2,6 +2,10 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
+import { Geist } from "next/font/google";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
   title: 'Indicações Legislativas – Câmara Municipal de Guarujá/SP',
@@ -21,7 +25,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" className={cn("font-sans", geist.variable)}>
       <body className="min-h-screen">
         <header className="bg-blue-800 text-white shadow">
           <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">

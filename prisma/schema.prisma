@@ -32,10 +32,12 @@ enum Papel {
 // ─────────────────────────────────────────────
 
 model Tenant {
-  id         String      @id @default(cuid())
-  nome       String
-  plano      Plano       @default(DEMO)
-  criadoEm  DateTime    @default(now())
+  id           String      @id @default(cuid())
+  nome         String
+  plano        Plano       @default(DEMO)
+  criadoEm     DateTime    @default(now())
+  mpCustomerId String?
+  planoAtivoEm DateTime?
 
   indicacoes Indicacao[]
   templates  Template[]
@@ -152,4 +154,17 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// ─────────────────────────────────────────────
+// DemoUso  (controle de limite por IP na demo pública)
+// ─────────────────────────────────────────────
+
+model DemoUso {
+  id       String @id @default(cuid())
+  ip       String
+  data     String // YYYY-MM-DD
+  contagem Int    @default(1)
+
+  @@unique([ip, data])
 }
