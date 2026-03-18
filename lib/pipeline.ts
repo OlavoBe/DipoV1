@@ -61,7 +61,13 @@ export async function indicacaoPipeline(
       : normalized;
 
     // ── 4. Verificar completude ─────────────────────────────────
-    if (!camposEssenciaisPreenchidos(enriched)) {
+    // Se complementos já foram enviados (segundo passe), o usuário já respondeu
+    // o que sabia. Zeramos perguntas_faltantes e geramos com o que temos,
+    // sem entrar em loop pedindo as mesmas informações de novo.
+    const isRetry = complementos && Object.keys(complementos).length > 0;
+    if (isRetry) {
+      enriched.perguntas_faltantes = [];
+    } else if (!camposEssenciaisPreenchidos(enriched)) {
       return {
         status: 'incomplete',
         perguntas: enriched.perguntas_faltantes,

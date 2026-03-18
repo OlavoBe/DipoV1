@@ -39,6 +39,12 @@ model Tenant {
   mpCustomerId String?
   planoAtivoEm DateTime?
 
+  // Dados do gabinete (preenchidos no onboarding)
+  nomeVereador  String   @default("")
+  nomePartido   String   @default("")
+  municipio     String   @default("Guarujá")
+  nomeAssessor  String   @default("")
+
   indicacoes Indicacao[]
   templates  Template[]
   users      User[]
@@ -92,9 +98,10 @@ model User {
   emailVerified DateTime?
   image         String?
   // Sistema
-  nome          String?
-  papel         Papel     @default(ASSESSOR)
-  criadoEm     DateTime  @default(now())
+  nome               String?
+  papel              Papel    @default(ASSESSOR)
+  criadoEm           DateTime @default(now())
+  onboardingComplete Boolean  @default(false)
 
   // Tenant — opcional: usuário existe antes de ser vinculado a um tenant
   tenantId      String?

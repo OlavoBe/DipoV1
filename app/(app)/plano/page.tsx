@@ -72,13 +72,11 @@ export default function UpgradePage() {
           </p>
         </div>
 
-        <div role="alert" aria-live="assertive">
-          {erro && (
-            <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700 text-center">
-              {erro}
-            </div>
-          )}
-        </div>
+        {erro && (
+          <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700 text-center">
+            {erro}
+          </div>
+        )}
 
         <div className="grid md:grid-cols-2 gap-6">
           {PLANOS.map((p) => (
@@ -118,7 +116,11 @@ export default function UpgradePage() {
               <button
                 onClick={() => handleAssinar(p.id)}
                 disabled={loading !== null}
-                className={p.destaque ? 'btn-primary w-full' : 'btn-secondary w-full !bg-gray-900 !text-white hover:!bg-gray-800 !border-gray-900'}
+                className={`w-full py-3 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60 ${
+                  p.destaque
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : 'bg-gray-900 text-white hover:bg-gray-800'
+                }`}
               >
                 {loading === p.id ? 'Redirecionando...' : 'Assinar agora'}
               </button>
