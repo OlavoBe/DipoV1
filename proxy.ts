@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const PUBLIC_PREFIXES = [
+  '/login',
+  '/planos',
   '/demo',
   '/api/demo',
   '/api/auth',
