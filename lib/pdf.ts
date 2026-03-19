@@ -19,7 +19,7 @@ async function launchBrowser(): Promise<Browser> {
     return pw.launch({
       args: chromium.args,
       executablePath,
-      headless: chromium.headless,
+      headless: true,
     });
   }
   const { chromium: pw } = await import('playwright');
