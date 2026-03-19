@@ -11,10 +11,15 @@ async function launchBrowser(): Promise<Browser> {
   if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
     const chromium = (await import('@sparticuz/chromium')).default;
     const { chromium: pw } = await import('playwright-core');
+    // v130+ não embute o binário — precisa baixar de URL remota (salvo em /tmp)
+    const executablePath = await chromium.executablePath(
+      process.env.CHROMIUM_EXECUTABLE_PATH ??
+        'https://github.com/Sparticuz/chromium/releases/download/v143.0.0/chromium-v143.0.0-pack.tar',
+    );
     return pw.launch({
       args: chromium.args,
-      executablePath: await chromium.executablePath(),
-      headless: true,
+      executablePath,
+      headless: chromium.headless,
     });
   }
   const { chromium: pw } = await import('playwright');
