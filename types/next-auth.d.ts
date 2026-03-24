@@ -6,6 +6,7 @@ declare module 'next-auth' {
       id: string;
       tenantId: string | null;
       onboardingComplete: boolean;
+      isAdmin: boolean;
     } & DefaultSession['user'];
   }
 }

@@ -24,7 +24,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const [dbUser, activeSessions] = await Promise.all([
         prisma.user.findUnique({
           where: { id: user.id },
-          select: { tenantId: true, onboardingComplete: true },
+          select: { tenantId: true, onboardingComplete: true, isAdmin: true },
         }),
         prisma.session.findMany({
           where: { userId: user.id, expires: { gt: new Date() } },
@@ -35,6 +35,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       session.user.tenantId = dbUser?.tenantId ?? null;
       session.user.onboardingComplete = dbUser?.onboardingComplete ?? false;
+      session.user.isAdmin = dbUser?.isAdmin ?? false;
 
       if (activeSessions.length > 1) {
         const newestToken = activeSessions[0].sessionToken;
