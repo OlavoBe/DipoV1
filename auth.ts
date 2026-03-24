@@ -7,7 +7,13 @@ import { authConfig } from './auth.config';
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
-  adapter: PrismaAdapter(prisma),
+  adapter: {
+    ...PrismaAdapter(prisma),
+    // Sobrescreve deleteSession para usar deleteMany (não lança erro se sessão não existe)
+    async deleteSession(sessionToken: string) {
+      await prisma.session.deleteMany({ where: { sessionToken } });
+    },
+  },
   providers: [
     Resend({
       apiKey: process.env.RESEND_API_KEY,
