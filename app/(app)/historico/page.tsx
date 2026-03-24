@@ -12,6 +12,8 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  ThumbsUp,
+  ThumbsDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -27,6 +29,7 @@ interface IndicacaoItem {
   createdAt: string;
   textoFinal: string;
   status: 'gerada' | 'incompleta';
+  feedback: number | null;
 }
 
 interface ApiResponse {
@@ -115,6 +118,64 @@ function IndicacaoSkeleton() {
 // IndicacaoCard
 // ─────────────────────────────────────────────
 
+function FeedbackButtons({ id, initialFeedback }: { id: string; initialFeedback: number | null }) {
+  const [feedback, setFeedback] = useState<number | null>(initialFeedback);
+  const [loading, setLoading] = useState(false);
+
+  async function handleFeedback(value: 1 | -1) {
+    if (feedback !== null || loading) return;
+    setLoading(true);
+    try {
+      await fetch(`/api/indicacoes/${id}/feedback`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ feedback: value }),
+      });
+      setFeedback(value);
+    } catch {
+      toast.error('Não foi possível registrar o feedback.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (feedback !== null) {
+    return (
+      <span className={cn(
+        'text-[11px] flex items-center gap-1 px-2 py-1 rounded-full',
+        feedback === 1 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500',
+      )}>
+        {feedback === 1
+          ? <><ThumbsUp className="h-3 w-3" /> Útil</>
+          : <><ThumbsDown className="h-3 w-3" /> Não útil</>
+        }
+      </span>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <span className="text-[11px] text-gray-400 mr-0.5">Útil?</span>
+      <button
+        onClick={() => handleFeedback(1)}
+        disabled={loading}
+        className="p-1.5 rounded hover:bg-green-50 text-gray-400 hover:text-green-600 transition-colors disabled:opacity-50"
+        title="Sim, foi útil"
+      >
+        <ThumbsUp className="h-3.5 w-3.5" />
+      </button>
+      <button
+        onClick={() => handleFeedback(-1)}
+        disabled={loading}
+        className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50"
+        title="Não foi útil"
+      >
+        <ThumbsDown className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
 function IndicacaoCard({ item }: { item: IndicacaoItem }) {
   const [copied, setCopied] = useState(false);
 
@@ -140,7 +201,6 @@ function IndicacaoCard({ item }: { item: IndicacaoItem }) {
 
         {/* Conteúdo */}
         <div className="flex-1 min-w-0 space-y-1.5">
-          {/* Assunto + badge */}
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-sm font-medium text-gray-900 truncate leading-snug">
               {item.assunto}
@@ -148,7 +208,6 @@ function IndicacaoCard({ item }: { item: IndicacaoItem }) {
             <StatusBadge status={item.status} />
           </div>
 
-          {/* Endereço */}
           {item.enderecoCompleto && (
             <div className="flex items-center gap-1.5 text-xs text-gray-500">
               <MapPin className="h-3 w-3 shrink-0 text-gray-400" />
@@ -156,7 +215,6 @@ function IndicacaoCard({ item }: { item: IndicacaoItem }) {
             </div>
           )}
 
-          {/* Data */}
           <div className="flex items-center gap-1.5 text-xs text-gray-400">
             <Calendar className="h-3 w-3 shrink-0" />
             <span>{formatData(item.createdAt)}</span>
@@ -164,7 +222,8 @@ function IndicacaoCard({ item }: { item: IndicacaoItem }) {
         </div>
 
         {/* Ações */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+          <FeedbackButtons id={item.id} initialFeedback={item.feedback} />
           <button
             onClick={handleCopy}
             className="btn-secondary text-xs px-3 py-1.5 gap-1.5 min-w-[90px] justify-center"

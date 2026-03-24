@@ -98,6 +98,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
           bairro: true,
           numero: true,
           cep: true,
+          feedback: true,
         },
       }),
     ]);
@@ -107,7 +108,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     const items = records.map((r, i) => ({
       id: r.id,
-      // Sequência decrescente: indicação mais recente = total, mais antiga = #1
       numero: total - offset - i,
       assunto: extractAssunto(r.inputRaw, r.extractedJson),
       enderecoCompleto: r.logradouro
@@ -115,8 +115,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         : null,
       createdAt: r.createdAt.toISOString(),
       textoFinal: r.textoFinal,
-      // Todos os registros no banco estão completos (incompletas não são salvas)
       status: 'gerada' as const,
+      feedback: r.feedback ?? null,
     }));
 
     return NextResponse.json({ items, total, page, totalPages });

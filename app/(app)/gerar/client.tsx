@@ -14,6 +14,8 @@ import {
   Check,
   Info,
   Clock,
+  ThumbsUp,
+  ThumbsDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ExtractedData } from '@/lib/types';
@@ -174,6 +176,64 @@ function PerguntasIncompletas({
 }
 
 // ─────────────────────────────────────────────
+// FeedbackBar
+// ─────────────────────────────────────────────
+
+function FeedbackBar({ recordId }: { recordId: string }) {
+  const [feedback, setFeedback] = useState<1 | -1 | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleFeedback(value: 1 | -1) {
+    if (feedback !== null || loading) return;
+    setLoading(true);
+    try {
+      await fetch(`/api/indicacoes/${recordId}/feedback`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ feedback: value }),
+      });
+      setFeedback(value);
+    } catch {
+      // silencioso — feedback é opcional
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2 text-xs text-gray-400">
+      {feedback !== null ? (
+        <span className={cn(
+          'flex items-center gap-1',
+          feedback === 1 ? 'text-green-600' : 'text-gray-500',
+        )}>
+          {feedback === 1 ? <ThumbsUp className="h-3.5 w-3.5" /> : <ThumbsDown className="h-3.5 w-3.5" />}
+          Obrigado pelo feedback!
+        </span>
+      ) : (
+        <>
+          <span>Esta indicação foi útil?</span>
+          <button
+            onClick={() => handleFeedback(1)}
+            disabled={loading}
+            className="flex items-center gap-1 px-2 py-1 rounded hover:bg-green-50 hover:text-green-600 transition-colors disabled:opacity-50"
+          >
+            <ThumbsUp className="h-3.5 w-3.5" /> Sim
+          </button>
+          <button
+            onClick={() => handleFeedback(-1)}
+            disabled={loading}
+            className="flex items-center gap-1 px-2 py-1 rounded hover:bg-red-50 hover:text-red-500 transition-colors disabled:opacity-50"
+          >
+            <ThumbsDown className="h-3.5 w-3.5" /> Não
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // CopyButton
 // ─────────────────────────────────────────────
 
@@ -284,6 +344,11 @@ function ResultCard({ state, onRetry, onRegenerate }: ResultCardProps) {
             <RefreshCw className="h-3.5 w-3.5" />
             Nova indicação
           </button>
+        </div>
+
+        {/* Feedback */}
+        <div className="px-4 pb-3">
+          <FeedbackBar recordId={state.recordId} />
         </div>
       </div>
     );

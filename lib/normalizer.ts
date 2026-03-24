@@ -52,6 +52,12 @@ export function normalizeData(data: ExtractedData): ExtractedData {
   // UF em maiúsculas
   if (normalized.uf) normalized.uf = normalized.uf.toUpperCase().trim();
 
+  // CEP: normaliza qualquer formato para NNNNN-NNN
+  if (normalized.cep) {
+    const digits = normalized.cep.replace(/\D/g, '');
+    normalized.cep = digits.length === 8 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : null;
+  }
+
   // Textos gerais
   if (normalized.tema)             normalized.tema             = cleanString(normalized.tema);
   if (normalized.descricao_problema) normalized.descricao_problema = cleanString(normalized.descricao_problema);

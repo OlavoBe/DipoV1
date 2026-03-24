@@ -89,6 +89,16 @@ function isGuaruja(cidade: string): boolean {
   return n === 'guaruja' || n.includes('guaruja');
 }
 
+/**
+ * Verifica se um CEP (só dígitos) pertence ao range de Guarujá/SP.
+ * CEPs de Guarujá: 11400-000 a 11499-999 (faixa 114XX-XXX).
+ * Serve como pré-filtro antes da chamada ao ViaCEP, evitando lookups
+ * desnecessários para CEPs claramente de outras cidades.
+ */
+function isGuarujaCEP(digits: string): boolean {
+  return digits.startsWith('114');
+}
+
 /** Formata string de dígitos CEP para NNNNN-NNN */
 function formatCEP(raw: string): string | null {
   const digits = raw.replace(/\D/g, '');
@@ -201,6 +211,12 @@ export async function lookupViaCEP(cep: string): Promise<CEPResult | null> {
   const digits = cep.replace(/\D/g, '');
   if (digits.length !== 8) {
     console.warn(`[geocoder] ViaCEP: CEP inválido "${cep}"`);
+    return null;
+  }
+
+  // Pré-filtro: se o CEP não começa com 114, não é Guarujá — evita chamada desnecessária
+  if (!isGuarujaCEP(digits)) {
+    console.info(`[geocoder] ViaCEP: CEP "${cep}" fora do range de Guarujá (114xx) — ignorando`);
     return null;
   }
 
