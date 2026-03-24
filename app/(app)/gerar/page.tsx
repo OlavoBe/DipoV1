@@ -1,16 +1,16 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
+import { TRIAL_MAX, TRIAL_JANELA_MS } from '@/lib/planos';
 import GerarPageClient from './client';
 
 export default async function GerarPage() {
   const session = await auth();
   const tenantId = session?.user?.tenantId;
 
-  // Defesa contra sessão inválida em renderização concorrente com o layout
   if (!tenantId) redirect('/login');
 
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const treHorasAtras = new Date(Date.now() - TRIAL_JANELA_MS);
 
   const [tenant, usageCount] = await Promise.all([
     prisma.tenant.findUnique({
@@ -18,11 +18,11 @@ export default async function GerarPage() {
       select: { plano: true },
     }),
     prisma.indicacao.count({
-      where: { tenantId, createdAt: { gte: sevenDaysAgo } },
+      where: { tenantId, createdAt: { gte: treHorasAtras } },
     }),
   ]);
 
-  const usageLimit = tenant?.plano === 'TRIAL' ? 3 : null;
+  const usageLimit = tenant?.plano === 'TRIAL' ? TRIAL_MAX : null;
 
   return <GerarPageClient usageCount={usageCount} usageLimit={usageLimit} />;
 }

@@ -48,7 +48,7 @@ function UsageBadge({ count, limit }: { count: number; limit: number | null }) {
 
   return (
     <div className={cn('mx-3 mb-3 px-3 py-2 rounded-lg border text-xs font-medium animate-slide-down', colorClass)}>
-      <div className="text-[10px] font-normal opacity-60 mb-0.5">Esta semana</div>
+      <div className="text-[10px] font-normal opacity-60 mb-0.5">Últimas 3 horas</div>
       {count} / {limit} indicações
     </div>
   );

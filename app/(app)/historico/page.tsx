@@ -6,7 +6,6 @@ import { toast } from 'sonner';
 import {
   MapPin,
   Calendar,
-  FileDown,
   Copy,
   Check,
   Search,
@@ -165,15 +164,7 @@ function IndicacaoCard({ item }: { item: IndicacaoItem }) {
         </div>
 
         {/* Ações */}
-        <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
-          <a
-            href={`/api/pdf/${item.id}`}
-            download
-            className="btn-secondary text-xs px-3 py-1.5 gap-1.5"
-          >
-            <FileDown className="h-3.5 w-3.5" />
-            PDF
-          </a>
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={handleCopy}
             className="btn-secondary text-xs px-3 py-1.5 gap-1.5 min-w-[90px] justify-center"

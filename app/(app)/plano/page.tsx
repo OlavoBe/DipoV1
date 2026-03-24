@@ -1,135 +1,79 @@
-'use client';
+import { auth } from '@/auth';
+import { prisma } from '@/lib/db';
+import { redirect } from 'next/navigation';
+import { getPlanoBadge } from '@/lib/planos';
+import { Clock, Zap } from 'lucide-react';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+export default async function PlanoPage() {
+  const session = await auth();
+  if (!session?.user?.tenantId) redirect('/login');
 
-const PLANOS = [
-  {
-    id: 'PRO_ASSESSOR',
-    nome: 'Pro Assessor',
-    preco: 97,
-    destaque: false,
-    features: [
-      'Indicações ilimitadas',
-      'Geração por IA com extração automática',
-      'Download em PDF e Word',
-      'Histórico completo',
-      'Template personalizável',
-      'Suporte por e-mail',
-    ],
-  },
-  {
-    id: 'PRO_GABINETE',
-    nome: 'Pro Gabinete',
-    preco: 197,
-    destaque: true,
-    features: [
-      'Tudo do Pro Assessor',
-      'Múltiplos usuários por gabinete',
-      'Múltiplos templates por vereador',
-      'Relatórios e estatísticas',
-      'Prioridade no suporte',
-      'Onboarding personalizado',
-    ],
-  },
-];
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: session.user.tenantId },
+    select: { plano: true },
+  });
 
-export default function UpgradePage() {
-  const router = useRouter();
-  const [loading, setLoading] = useState<string | null>(null);
-  const [erro, setErro] = useState<string | null>(null);
-
-  async function handleAssinar(planoId: string) {
-    setLoading(planoId);
-    setErro(null);
-    try {
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plano: planoId }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setErro(data.error ?? 'Erro ao iniciar checkout.');
-        setLoading(null);
-        return;
-      }
-      router.push(data.init_point);
-    } catch {
-      setErro('Falha de conexão. Tente novamente.');
-      setLoading(null);
-    }
-  }
+  const plano = tenant?.plano ?? 'TRIAL';
+  const badge = getPlanoBadge(plano);
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
-      <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-lg space-y-6">
+      <div>
+        <h1 className="section-title">Plano</h1>
+        <p className="section-subtitle">Seu plano atual e opções de upgrade</p>
+      </div>
 
-        <div className="text-center space-y-2">
-          <h1 className="section-title text-3xl">Escolha seu plano</h1>
-          <p className="section-subtitle text-base">
-            Indicações ilimitadas, PDF profissional e sem marca d&apos;água.
-          </p>
+      {/* Plano atual */}
+      <div className="card p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-gray-700">Plano atual</span>
+          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${badge.cor}`}>
+            {badge.label}
+          </span>
         </div>
 
-        {erro && (
-          <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700 text-center">
-            {erro}
+        {plano === 'TRIAL' && (
+          <div className="flex items-start gap-2.5 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2.5">
+            <Clock className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+            <p className="text-xs text-blue-700 leading-relaxed">
+              No plano Trial você pode gerar até <strong>5 indicações a cada 3 horas</strong>.
+              É gratuito durante o período de validação do produto.
+            </p>
           </div>
         )}
+      </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          {PLANOS.map((p) => (
-            <div
-              key={p.id}
-              className={`relative bg-white rounded-2xl border shadow-sm p-7 flex flex-col ${
-                p.destaque
-                  ? 'border-blue-500 ring-2 ring-blue-500'
-                  : 'border-gray-200'
-              }`}
-            >
-              {p.destaque && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-xs font-semibold px-4 py-1 rounded-full whitespace-nowrap">
-                  Mais completo
-                </div>
-              )}
+      {/* Em breve */}
+      <div className="card p-6 space-y-4">
+        <div className="flex items-center gap-2">
+          <Zap className="h-5 w-5 text-blue-600" />
+          <h2 className="text-base font-semibold text-gray-900">Planos Pro — Em breve</h2>
+        </div>
 
-              <div className="mb-5">
-                <h2 className="text-xl font-bold text-gray-900">{p.nome}</h2>
-                <div className="mt-2 flex items-end gap-1">
-                  <span className="text-4xl font-extrabold text-gray-900">
-                    R$&nbsp;{p.preco}
-                  </span>
-                  <span className="text-gray-500 mb-1">/mês</span>
-                </div>
-              </div>
+        <p className="text-sm text-gray-600 leading-relaxed">
+          Estamos finalizando os planos pagos com indicações ilimitadas, templates personalizados
+          e muito mais. Em breve você poderá assinar diretamente por aqui.
+        </p>
 
-              <ul className="space-y-2 flex-1 mb-6">
-                {p.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-sm text-gray-700">
-                    <span className="text-green-500 font-bold mt-0.5">✓</span>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-
-              <button
-                onClick={() => handleAssinar(p.id)}
-                disabled={loading !== null}
-                className={`w-full py-3 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60 ${
-                  p.destaque
-                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                    : 'bg-gray-900 text-white hover:bg-gray-800'
-                }`}
-              >
-                {loading === p.id ? 'Redirecionando...' : 'Assinar agora'}
-              </button>
+        <div className="space-y-2">
+          {[
+            'Indicações ilimitadas',
+            'Templates personalizados do gabinete',
+            'Histórico completo',
+            'Suporte prioritário',
+          ].map((f) => (
+            <div key={f} className="flex items-center gap-2 text-sm text-gray-700">
+              <span className="text-green-500 font-bold">✓</span>
+              {f}
             </div>
           ))}
         </div>
 
-        <p className="text-center text-xs text-gray-400">
-          Pagamento seguro via Mercado Pago. Cancele quando quiser.
+        <p className="text-xs text-gray-400">
+          Interesse? Entre em contato pelo e-mail{' '}
+          <a href="mailto:contato@dipo.com.br" className="text-blue-600 hover:underline">
+            contato@dipo.com.br
+          </a>
         </p>
       </div>
     </div>

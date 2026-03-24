@@ -184,10 +184,7 @@ Indico à Mesa, nos termos regimentais, que seja oficiado ao Excelentíssimo Sen
 
 ${sala}, ${dataExtenso}.
 
-${vereador}
-${cargo}
-
-Retorne APENAS o texto final da indicação. Nenhum texto adicional.`;
+Retorne APENAS o texto final da indicação, sem incluir nome ou assinatura do vereador. Nenhum texto adicional.`;
 }
 
 // ─────────────────────────────────────────────

@@ -10,6 +10,10 @@ export const PLANOS = {
 
 export type PlanoKey = keyof typeof PLANOS;
 
+// Limite do plano Trial
+export const TRIAL_MAX       = 5;
+export const TRIAL_JANELA_MS = 3 * 60 * 60 * 1000; // 3 horas em ms
+
 export interface LimiteResult {
   permitido: boolean;
   motivo?: string;
@@ -30,9 +34,9 @@ export function getPlanoBadge(plano: string): { label: string; cor: string } {
 /**
  * Verifica se um tenant pode gerar mais indicações conforme seu plano.
  *
- * - DEMO: 1/dia por IP (tratado na rota /api/demo; aqui sempre bloqueia)
- * - TRIAL: máximo 3 indicações nos últimos 7 dias
+ * - TRIAL: máximo 5 indicações nas últimas 3 horas
  * - PRO_ASSESSOR, PRO_GABINETE, CAMARA: ilimitado
+ * - DEMO: bloqueado na rota autenticada (usa /api/demo)
  */
 export async function checkLimite(tenantId: string): Promise<LimiteResult> {
   const tenant = await prisma.tenant.findUnique({
@@ -51,33 +55,31 @@ export async function checkLimite(tenantId: string): Promise<LimiteResult> {
     return { permitido: true };
   }
 
-  // TRIAL: máximo 3 indicações nos últimos 7 dias
+  // TRIAL: máximo 5 indicações nas últimas 3 horas
   if (plano === 'TRIAL') {
-    const MAX_TRIAL = 3;
-    const seteAtras = new Date();
-    seteAtras.setDate(seteAtras.getDate() - 7);
+    const treHorasAtras = new Date(Date.now() - TRIAL_JANELA_MS);
 
     const count = await prisma.indicacao.count({
       where: {
         tenantId,
-        createdAt: { gte: seteAtras },
+        createdAt: { gte: treHorasAtras },
       },
     });
 
-    if (count >= MAX_TRIAL) {
+    if (count >= TRIAL_MAX) {
       return {
         permitido: false,
-        motivo: `Limite do plano Trial atingido: ${MAX_TRIAL} indicações por semana. Faça upgrade para o plano Pro e continue sem limites.`,
+        motivo: `Você atingiu o limite de ${TRIAL_MAX} indicações por período de 3 horas. Aguarde um momento e tente novamente.`,
         restantes: 0,
       };
     }
 
-    return { permitido: true, restantes: MAX_TRIAL - count };
+    return { permitido: true, restantes: TRIAL_MAX - count };
   }
 
-  // DEMO: acesso direto à rota autenticada não é permitido no plano Demo
+  // DEMO: acesso direto à rota autenticada não é permitido
   return {
     permitido: false,
-    motivo: 'O plano Demo não permite acesso autenticado. Use a página de demonstração em /demo ou faça upgrade para o plano Trial.',
+    motivo: 'O plano Demo não permite acesso autenticado. Use a página de demonstração em /demo.',
   };
 }

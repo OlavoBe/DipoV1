@@ -2,18 +2,17 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { AppShell } from '@/components/app/app-shell';
+import { TRIAL_MAX, TRIAL_JANELA_MS } from '@/lib/planos';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
 
-  // Não autenticado → página de login
   if (!session?.user) redirect('/login');
 
-  // Onboarding não concluído (sem tenant ou flag não marcada)
   if (!session.user.tenantId || !session.user.onboardingComplete) redirect('/onboarding');
 
   const tenantId = session.user.tenantId;
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const treHorasAtras = new Date(Date.now() - TRIAL_JANELA_MS);
 
   const [tenant, usageCount] = await Promise.all([
     prisma.tenant.findUnique({
@@ -23,13 +22,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     prisma.indicacao.count({
       where: {
         tenantId,
-        createdAt: { gte: sevenDaysAgo },
+        createdAt: { gte: treHorasAtras },
       },
     }),
   ]);
 
-  // TRIAL: 3/semana — outros planos: ilimitado (null)
-  const usageLimit = tenant?.plano === 'TRIAL' ? 3 : null;
+  // TRIAL: 5/3h — outros planos: ilimitado (null)
+  const usageLimit = tenant?.plano === 'TRIAL' ? TRIAL_MAX : null;
 
   return (
     <AppShell

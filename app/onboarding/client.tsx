@@ -251,7 +251,7 @@ export default function OnboardingClient({ prefill }: Props) {
                 <div>
                   <h1 className="text-xl font-bold text-gray-900">Configure seu gabinete</h1>
                   <p className="text-sm text-gray-500 mt-1">
-                    Estas informações aparecem no cabeçalho das suas indicações.
+                    Estas informações identificam seu gabinete e serão usadas nos templates futuros.
                   </p>
                 </div>
 
@@ -338,36 +338,34 @@ export default function OnboardingClient({ prefill }: Props) {
             {step === 2 && (
               <>
                 <div>
-                  <h1 className="text-xl font-bold text-gray-900">Template de indicação</h1>
+                  <h1 className="text-xl font-bold text-gray-900">Como o Dipo funciona</h1>
                   <p className="text-sm text-gray-500 mt-1">
-                    Temos um modelo padrão pronto para você usar agora.
-                  </p>
-                </div>
-
-                {/* Preview readonly */}
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Pré-visualização
-                  </p>
-                  <TemplatePreview />
-                  <p className="text-xs text-gray-400">
-                    Você pode personalizar logotipo, cores e assinatura depois em{' '}
-                    <span className="font-medium">Configurações</span>.
+                    Entenda o fluxo antes de começar.
                   </p>
                 </div>
 
                 <div className="space-y-3">
-                  <button className="btn-primary w-full" onClick={handleStep2}>
-                    Usar template padrão
-                    <span className="ml-1.5 text-[11px] font-normal opacity-80">(recomendado)</span>
-                  </button>
-                  <button
-                    className="w-full text-sm text-gray-400 hover:text-gray-600 transition-colors py-1"
-                    onClick={handleStep2}
-                  >
-                    Personalizar depois nas configurações
-                  </button>
+                  {[
+                    { num: '1', text: 'Descreva o pedido em linguagem natural — como você recebeu do morador.' },
+                    { num: '2', text: 'O Dipo gera o texto formal da indicação automaticamente.' },
+                    { num: '3', text: 'Copie o texto e cole no modelo do seu gabinete. Adicione o nome do vereador e a assinatura.' },
+                  ].map(({ num, text }) => (
+                    <div key={num} className="flex items-start gap-3">
+                      <div className="h-6 w-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                        {num}
+                      </div>
+                      <p className="text-sm text-gray-600 leading-relaxed">{text}</p>
+                    </div>
+                  ))}
                 </div>
+
+                <p className="text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2">
+                  Templates personalizados com logotipo e assinatura automática estão chegando em breve.
+                </p>
+
+                <button className="btn-primary w-full" onClick={handleStep2}>
+                  Entendido, vamos começar!
+                </button>
               </>
             )}
 

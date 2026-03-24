@@ -6,13 +6,14 @@ import { toast } from 'sonner';
 import {
   Zap,
   Loader2,
-  FileText,
   RefreshCw,
-  Download,
   AlertCircle,
   CheckCircle,
   Circle,
-  ArrowUpRight,
+  Copy,
+  Check,
+  Info,
+  Clock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ExtractedData } from '@/lib/types';
@@ -60,7 +61,10 @@ function UsageBadge({ count, limit }: { count: number; limit: number | null }) {
 
   return (
     <div className={cn('flex items-center justify-between px-3 py-2 rounded-lg border text-xs', colorClass)}>
-      <span>Indicações usadas esta semana</span>
+      <span className="flex items-center gap-1.5">
+        <Clock className="h-3 w-3" />
+        Indicações nas últimas 3 horas
+      </span>
       <span className="font-semibold tabular-nums">{count} / {limit}</span>
     </div>
   );
@@ -170,6 +174,41 @@ function PerguntasIncompletas({
 }
 
 // ─────────────────────────────────────────────
+// CopyButton
+// ─────────────────────────────────────────────
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      toast.success('Texto copiado!');
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Não foi possível copiar. Selecione e copie manualmente.');
+    }
+  }
+
+  return (
+    <button
+      onClick={handleCopy}
+      className={cn(
+        'btn-primary flex-1 justify-center text-sm transition-all',
+        copied && 'bg-green-600 hover:bg-green-600',
+      )}
+    >
+      {copied ? (
+        <><Check className="h-4 w-4" /> Copiado!</>
+      ) : (
+        <><Copy className="h-4 w-4" /> Copiar texto</>
+      )}
+    </button>
+  );
+}
+
+// ─────────────────────────────────────────────
 // ResultCard
 // ─────────────────────────────────────────────
 
@@ -184,7 +223,6 @@ function ResultCard({ state, onRetry, onRegenerate }: ResultCardProps) {
   if (state.kind === 'empty') {
     return (
       <div className="min-h-[280px] rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-4 p-10 text-center animate-fade-in">
-        {/* SVG illustration — documento com seta */}
         <svg width="72" height="72" viewBox="0 0 72 72" fill="none" aria-hidden="true">
           <rect x="14" y="10" width="36" height="46" rx="4" fill="#F3F4F6" stroke="#E5E7EB" strokeWidth="1.5"/>
           <path d="M38 10 L50 22 L38 22 Z" fill="#E5E7EB"/>
@@ -224,6 +262,14 @@ function ResultCard({ state, onRetry, onRegenerate }: ResultCardProps) {
           <span className="text-sm font-medium text-green-700">Indicação gerada com sucesso</span>
         </div>
 
+        {/* Aviso de uso */}
+        <div className="px-4 py-3 border-b border-blue-100 bg-blue-50 flex items-start gap-2.5">
+          <Info className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
+          <p className="text-xs text-blue-700 leading-relaxed">
+            <span className="font-semibold">Como usar:</span> Copie o texto abaixo e cole no modelo do seu gabinete. Adicione o nome do vereador, o número da indicação e a assinatura.
+          </p>
+        </div>
+
         {/* Texto scrollável */}
         <div className="overflow-y-auto max-h-[400px] p-5 bg-gray-50">
           <pre className="whitespace-pre-wrap font-serif text-sm leading-relaxed text-gray-900">
@@ -233,24 +279,10 @@ function ResultCard({ state, onRetry, onRegenerate }: ResultCardProps) {
 
         {/* Ações */}
         <div className="px-4 py-3 border-t border-gray-100 flex gap-2 flex-wrap shrink-0">
-          <a
-            href={`/api/pdf/${state.recordId}`}
-            download
-            className="btn-primary flex-1 justify-center text-sm"
-          >
-            <Download className="h-4 w-4" />
-            Baixar PDF
-          </a>
-          <a
-            href={`/api/docx/${state.recordId}`}
-            download
-            className="btn-secondary text-sm"
-          >
-            Word
-          </a>
+          <CopyButton text={state.textoFinal} />
           <button onClick={onRegenerate} className="btn-secondary text-sm">
             <RefreshCw className="h-3.5 w-3.5" />
-            Regenerar
+            Nova indicação
           </button>
         </div>
       </div>
@@ -262,17 +294,14 @@ function ResultCard({ state, onRetry, onRegenerate }: ResultCardProps) {
     return (
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-8 flex flex-col items-center gap-4 text-center animate-fade-in">
         <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center">
-          <AlertCircle className="h-6 w-6 text-amber-500" />
+          <Clock className="h-6 w-6 text-amber-500" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-amber-900">Limite semanal atingido</p>
-          <p className="text-xs text-amber-700 mt-1 max-w-[240px] mx-auto leading-relaxed">
+          <p className="text-sm font-semibold text-amber-900">Limite temporário atingido</p>
+          <p className="text-xs text-amber-700 mt-1 max-w-[260px] mx-auto leading-relaxed">
             {state.motivo}
           </p>
         </div>
-        <a href="/plano" className="btn-primary text-sm">
-          Ver planos Pro <ArrowUpRight className="h-3.5 w-3.5" />
-        </a>
       </div>
     );
   }
@@ -346,7 +375,6 @@ export default function GerarPageClient({
     }
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-    // handleGerar é estável (useCallback com [router])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [texto, isLoading]);
 
@@ -373,16 +401,14 @@ export default function GerarPageClient({
           body: JSON.stringify({ texto: textoInput, complementos }),
         });
 
-        // Limite de plano
         if (res.status === 402) {
           const data = await res.json();
-          setResult({ kind: 'limite', motivo: data.motivo ?? 'Limite do plano atingido.' });
+          setResult({ kind: 'limite', motivo: data.motivo ?? 'Limite do período atingido.' });
           return;
         }
 
         const data = await res.json();
 
-        // Erro da API
         if (!res.ok || data.status === 'error') {
           const message = data.error ?? 'Erro desconhecido.';
           setResult({ kind: 'error', message });
@@ -396,7 +422,6 @@ export default function GerarPageClient({
           return;
         }
 
-        // Dados incompletos — exibe perguntas na coluna esquerda
         if (data.status === 'incomplete') {
           setResult({ kind: 'empty' });
           setQuestions({
@@ -407,7 +432,6 @@ export default function GerarPageClient({
           return;
         }
 
-        // Sucesso
         if (data.status === 'success') {
           setResult({
             kind: 'success',
@@ -415,8 +439,8 @@ export default function GerarPageClient({
             recordId: data.record_id,
           });
           setLocalUsage((u) => u + 1);
-          toast.success('Indicação gerada com sucesso!');
-          router.refresh(); // invalida cache do histórico
+          toast.success('Indicação gerada!');
+          router.refresh();
         }
       } catch {
         const message = 'Falha de conexão. Verifique sua internet.';
@@ -464,7 +488,6 @@ export default function GerarPageClient({
         </div>
 
         <div className="card p-4 space-y-3">
-          {/* Textarea com auto-resize */}
           <label htmlFor="texto-pedido" className="sr-only">
             Descrição do pedido legislativo
           </label>
@@ -488,7 +511,6 @@ export default function GerarPageClient({
             </span>
           </div>
 
-          {/* Botão principal */}
           <button
             className="btn-primary w-full"
             onClick={() => handleGerar(texto)}
@@ -501,11 +523,9 @@ export default function GerarPageClient({
             )}
           </button>
 
-          {/* UsageBadge inline */}
           <UsageBadge count={localUsage} limit={usageLimit} />
         </div>
 
-        {/* Perguntas incompletas */}
         {questions && (
           <PerguntasIncompletas
             perguntas={questions.perguntas}
