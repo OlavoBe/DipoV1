@@ -267,7 +267,7 @@ export function AppShell({
 
         {/* Conteúdo da página */}
         <main className="flex-1 px-4 md:px-8 py-6 md:py-8">
-          <div className="max-w-3xl animate-fade-in">{children}</div>
+          <div className="max-w-5xl animate-fade-in">{children}</div>
         </main>
       </div>
     </div>
