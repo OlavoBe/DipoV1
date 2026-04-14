@@ -6,7 +6,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { callLLM } from './llm';
+import { callLLMGenerate } from './llm';
 import { getTemplate } from './template';
 import type { ExtractedData, IndicacaoCategoria } from './types';
 
@@ -282,7 +282,7 @@ export async function generateTexto(data: ExtractedData, templateId?: string): P
   const systemPrompt = await buildSystemPrompt(templateId, data.categoria, data.tipos_servico ?? []);
   const userMsg      = buildUserPrompt(data);
   // temperature: 0.2 — texto formal com baixa variação, mas linguagem natural
-  const raw          = await callLLM(systemPrompt, userMsg, 0.2);
+  const raw          = await callLLMGenerate(systemPrompt, userMsg, 0.2);
 
   let texto = removeEmojis(raw).trim();
   texto = texto.replace(/```[a-z]*\n?/g, '').replace(/```/g, '');

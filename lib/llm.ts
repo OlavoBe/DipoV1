@@ -16,14 +16,26 @@ export interface LLMConfig {
   timeoutMs?: number;
 }
 
-function getConfig(): LLMConfig {
+/** Config para extração — modelo barato e rápido */
+function getExtractConfig(): LLMConfig {
   const apiKey = process.env.LLM_API_KEY ?? '';
   const provider = (process.env.LLM_PROVIDER ?? 'anthropic') as 'anthropic' | 'openai';
   const model =
-    process.env.LLM_MODEL ??
+    process.env.LLM_MODEL_EXTRACT ??
     (provider === 'anthropic' ? 'claude-3-5-haiku-20241022' : 'gpt-4o-mini');
 
   return { apiKey, model, provider, maxTokens: 2048, timeoutMs: 30_000 };
+}
+
+/** Config para geração — modelo mais capaz para texto legislativo formal */
+function getGenerateConfig(): LLMConfig {
+  const apiKey = process.env.LLM_API_KEY ?? '';
+  const provider = (process.env.LLM_PROVIDER ?? 'anthropic') as 'anthropic' | 'openai';
+  const model =
+    process.env.LLM_MODEL_GENERATE ??
+    (provider === 'anthropic' ? 'claude-sonnet-4-5-20250514' : 'gpt-4o');
+
+  return { apiKey, model, provider, maxTokens: 2048, timeoutMs: 45_000 };
 }
 
 async function callAnthropic(
@@ -109,17 +121,13 @@ async function callOpenAI(
   }
 }
 
-/**
- * Chama o LLM com retry (1 retry em erro transitório).
- * @param temperature  0 = determinístico; 1 = criativo. Default: provider default (não enviado).
- */
-export async function callLLM(
+/** Executa a chamada com retry (1 retry em erro transitório) usando a config fornecida. */
+async function callWithRetry(
   systemPrompt: string,
   userMessage: string,
+  cfg: LLMConfig,
   temperature?: number,
 ): Promise<string> {
-  const cfg = getConfig();
-
   if (!cfg.apiKey) {
     throw new Error(
       'LLM_API_KEY não configurada. Defina a variável de ambiente no arquivo .env',
@@ -147,6 +155,30 @@ export async function callLLM(
     }
     throw err;
   }
+}
+
+/**
+ * Chama o LLM para extração — usa modelo barato (Haiku / gpt-4o-mini).
+ * @param temperature  0 = determinístico; 1 = criativo. Default: provider default (não enviado).
+ */
+export async function callLLM(
+  systemPrompt: string,
+  userMessage: string,
+  temperature?: number,
+): Promise<string> {
+  return callWithRetry(systemPrompt, userMessage, getExtractConfig(), temperature);
+}
+
+/**
+ * Chama o LLM para geração de texto formal — usa modelo mais capaz (Sonnet / gpt-4o).
+ * @param temperature  0 = determinístico; 1 = criativo. Default: provider default (não enviado).
+ */
+export async function callLLMGenerate(
+  systemPrompt: string,
+  userMessage: string,
+  temperature?: number,
+): Promise<string> {
+  return callWithRetry(systemPrompt, userMessage, getGenerateConfig(), temperature);
 }
 
 export function isDemoMode(): boolean {
