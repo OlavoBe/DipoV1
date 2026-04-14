@@ -1,4 +1,5 @@
 {
+  "vereador_slug": "generico",
   "categoria": "servico_urbano",
   "tipos_servico": ["limpeza_canal_desassoreamento"],
   "descricao": "Canal assoreado e com lixo causando alagamentos em períodos de chuva",

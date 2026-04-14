@@ -1,4 +1,5 @@
 {
+  "vereador_slug": "generico",
   "categoria": "servico_urbano",
   "tipos_servico": ["iluminacao_publica"],
   "descricao": "Postes apagados em trecho escuro, favorecendo insegurança à noite",

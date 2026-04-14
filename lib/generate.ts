@@ -56,6 +56,7 @@ function buildProvidenciasFromTipos(tipos: string[]): string[] {
 // ─────────────────────────────────────────────
 
 interface IndicacaoExemplo {
+  vereador_slug?: string;
   categoria: string;
   tipos_servico: string[];
   descricao: string;
@@ -63,43 +64,73 @@ interface IndicacaoExemplo {
 }
 
 /**
- * Carrega exemplos históricos relevantes da pasta data/indicacoes_exemplo/.
- * Seleciona 1–2 exemplos compatíveis com a categoria e tipos_servico da indicação atual.
+ * Lê todos os JSONs de um diretório e retorna como exemplos.
  */
-function loadFewShotExamples(
-  categoria: IndicacaoCategoria,
-  tiposServico: string[],
-): IndicacaoExemplo[] {
-  const dir = path.join(process.cwd(), 'data', 'indicacoes_exemplo');
+function loadExemplosFromDir(dir: string): IndicacaoExemplo[] {
   if (!fs.existsSync(dir)) return [];
-
   const files = fs.readdirSync(dir).filter(f => f.endsWith('.json'));
   const exemplos: IndicacaoExemplo[] = [];
-
   for (const file of files) {
     try {
       const content = fs.readFileSync(path.join(dir, file), 'utf-8');
-      const exemplo = JSON.parse(content) as IndicacaoExemplo;
-      exemplos.push(exemplo);
+      exemplos.push(JSON.parse(content) as IndicacaoExemplo);
     } catch {
       // ignora arquivos malformados
     }
   }
+  return exemplos;
+}
 
-  // Prioridade: mesma categoria + interseção de tipos_servico
+/**
+ * Seleciona o melhor exemplo de uma lista para a categoria/tipos_servico informados.
+ */
+function selectBestExemplo(
+  exemplos: IndicacaoExemplo[],
+  categoria: IndicacaoCategoria,
+  tiposServico: string[],
+): IndicacaoExemplo[] {
+  // Prioridade 1: mesma categoria + interseção de tipos_servico
   const comIntersecao = exemplos.filter(e =>
     e.categoria === categoria &&
     e.tipos_servico.some(t => tiposServico.includes(t)),
   );
   if (comIntersecao.length > 0) return comIntersecao.slice(0, 1);
 
-  // Segunda prioridade: mesma categoria
+  // Prioridade 2: mesma categoria
   const mesmaCategoria = exemplos.filter(e => e.categoria === categoria);
   if (mesmaCategoria.length > 0) return mesmaCategoria.slice(0, 1);
 
   // Fallback: qualquer servico_urbano (mais comum)
   const urbanos = exemplos.filter(e => e.categoria === 'servico_urbano');
   return urbanos.slice(0, 1);
+}
+
+/**
+ * Carrega exemplos históricos relevantes.
+ * - Se vereadorSlug for fornecido e a subpasta existir, usa exemplos do vereador.
+ * - Se não houver exemplos específicos, cai para generico/.
+ * - Se vereadorSlug for undefined ou 'outro', usa direto generico/.
+ */
+function loadFewShotExamples(
+  categoria: IndicacaoCategoria,
+  tiposServico: string[],
+  vereadorSlug?: string,
+): IndicacaoExemplo[] {
+  const baseDir = path.join(process.cwd(), 'data', 'indicacoes_exemplo');
+  const genericoDir = path.join(baseDir, 'generico');
+
+  // Tenta carregar exemplos do vereador específico
+  if (vereadorSlug && vereadorSlug !== 'outro') {
+    const vereadorDir = path.join(baseDir, vereadorSlug);
+    const exemplos = loadExemplosFromDir(vereadorDir);
+    if (exemplos.length > 0) {
+      return selectBestExemplo(exemplos, categoria, tiposServico);
+    }
+  }
+
+  // Fallback: generico/
+  const exemplos = loadExemplosFromDir(genericoDir);
+  return selectBestExemplo(exemplos, categoria, tiposServico);
 }
 
 /** Formata exemplos históricos para injeção no system prompt */
@@ -119,6 +150,7 @@ async function buildSystemPrompt(
   templateId?: string,
   categoria?: IndicacaoCategoria,
   tiposServico: string[] = [],
+  vereadorSlug?: string,
 ): Promise<string> {
   const t = await getTemplate(templateId);
   const vereador    = t.vereador.nome || 'MÁRCIO NABOR TARDELLI';
@@ -150,8 +182,8 @@ async function buildSystemPrompt(
 - Fundamente a importância do tema para Guarujá
 - As providências solicitadas devem ser objetivas e realizáveis pelo setor competente`;
 
-  // Few-shot: exemplos históricos relevantes
-  const exemplos = loadFewShotExamples(categoria ?? 'servico_urbano', tiposServico);
+  // Few-shot: exemplos históricos relevantes (filtrados por vereador se disponível)
+  const exemplos = loadFewShotExamples(categoria ?? 'servico_urbano', tiposServico, vereadorSlug);
   const fewShotBlock = buildFewShotBlock(exemplos);
 
   return `Você é um redator especializado em indicações legislativas para a ${instituicao}.
@@ -278,8 +310,8 @@ function removeEmojis(text: string): string {
 // Geração principal
 // ─────────────────────────────────────────────
 
-export async function generateTexto(data: ExtractedData, templateId?: string): Promise<string> {
-  const systemPrompt = await buildSystemPrompt(templateId, data.categoria, data.tipos_servico ?? []);
+export async function generateTexto(data: ExtractedData, templateId?: string, vereadorSlug?: string): Promise<string> {
+  const systemPrompt = await buildSystemPrompt(templateId, data.categoria, data.tipos_servico ?? [], vereadorSlug);
   const userMsg      = buildUserPrompt(data);
   // temperature: 0.2 — texto formal com baixa variação, mas linguagem natural
   const raw          = await callLLMGenerate(systemPrompt, userMsg, 0.2);

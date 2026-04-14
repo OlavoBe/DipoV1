@@ -1,4 +1,5 @@
 {
+  "vereador_slug": "generico",
   "categoria": "servico_urbano",
   "tipos_servico": ["tapa_buraco", "capinacao_rocada", "fiscalizacao_transito"],
   "descricao": "Moradores solicitam múltiplos serviços em via pública",
