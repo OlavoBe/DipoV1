@@ -76,7 +76,7 @@ UPDATE "User" SET "tenantId" = '<id-do-tenant>' WHERE email = 'teste-trial@dipo.
 | Label         | E-mail                          | Para testar                        |
 |---------------|---------------------------------|------------------------------------|
 | Demo          | teste-demo@dipo.local           | Plano DEMO (bloqueado na rota auth)|
-| Trial         | teste-trial@dipo.local          | Limite de 3/semana                 |
+| Trial         | teste-trial@dipo.local          | Limite de 5/3h                     |
 | Pro Assessor  | teste-pro-assessor@dipo.local   | Ilimitado                          |
 | Pro Gabinete  | teste-pro-gabinete@dipo.local   | Ilimitado                          |
 | Câmara        | teste-camara@dipo.local         | Ilimitado                          |
@@ -124,10 +124,52 @@ app/api/test-login/route.ts      ← endpoint que cria a sessão no banco
 | Plano        | Limite                          |
 |--------------|---------------------------------|
 | DEMO         | Bloqueado na rota autenticada   |
-| TRIAL        | 3 indicações nos últimos 7 dias |
+| TRIAL        | 5 indicações nas últimas 3 horas |
 | PRO_ASSESSOR | Ilimitado                       |
 | PRO_GABINETE | Ilimitado                       |
 | CAMARA       | Ilimitado                       |
 
 A demo pública (`/demo` + `/api/demo`) tem limite separado: 1 geração por IP por dia,
 controlado pela tabela `DemoUso`.
+
+| BETA         | Sem limite (testadores beta)    |
+
+---
+
+## Beta v2 — Contexto
+
+Estamos expandindo o produto para **4 gabinetes beta**:
+
+| Vereador                        | Nome completo              |
+|---------------------------------|----------------------------|
+| Valdemir (Val Advogado)         | Valdemir (Val Advogado)    |
+| Ariani da Silva Paz             | Ariani da Silva Paz        |
+| Juninho Eroso                   | Edmar Lima dos Santos      |
+| Márcio do Pet Shop              | Márcio Nabor Tardelli      |
+
+- O onboarding tem dropdown de seleção de vereador com esses 4 + "Outro vereador"
+- Few-shot examples e system prompts são filtrados por vereador quando há perfil dedicado
+- Existe plano **BETA** (sem limite de indicações) para usuários testadores beta
+
+---
+
+## Estilos por Vereador
+
+Cada vereador tem um estilo de texto distinto que deve ser respeitado na geração:
+
+| Vereador            | Estilo                                                                                     |
+|---------------------|--------------------------------------------------------------------------------------------|
+| **Juninho Eroso**   | Direto, sem justificativa longa, padrão clássico (Variação 1), saudação tipo B             |
+| **Ariani**          | Texto em CAIXA ALTA, CEP sempre presente, providências numeradas (Variação 2), saudação B  |
+| **Márcio do Pet**   | "Fomos procurados por moradores..." + providências numeradas (Variação 2), saudação A ou B |
+| **Valdemir**        | Narrativa técnica formal prolíxa, justificativa + indicação separados, saudação tipo A     |
+
+---
+
+## Regra de Modelo LLM
+
+- Geração de indicações **DEVE** usar `claude-sonnet-4-5-20250514` ou superior (NÃO Haiku)
+- Extração pode usar Haiku (`claude-3-5-haiku-20241022`) para economizar custo
+- Variável `LLM_MODEL_GENERATE` deve ser `claude-sonnet-4-5-20250514` em produção
+- Variável `LLM_MODEL_EXTRACT` pode ser `claude-3-5-haiku-20241022` para extração barata
+- Para OpenAI: `LLM_MODEL_GENERATE=gpt-4o`, `LLM_MODEL_EXTRACT=gpt-4o-mini`
