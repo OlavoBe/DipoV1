@@ -2,12 +2,16 @@
  * Integration — PATCH /api/tenant/setup
  *
  * Testa:
- *  1. Slug beta → nome auto-preenchido do perfil
- *  2. Slug "outro" → usa nome do body
+ *  1. Slug beta (usuário com tenant) → nome auto-preenchido do perfil
+ *  2. Slug "outro" → usa nome do body, plano TRIAL
  *  3. nomeVereador ausente → 400
  *  4. nomeAssessor ausente → 400
  *  5. Sem sessão → 401
  *  6. complete=true → chama user.update com onboardingComplete
+ *  7. Slug genérico sem tenant → cria TRIAL e vincula
+ *  8. Slug beta sem tenant, beta pré-existente sem users → vincula ao beta existente (plano BETA)
+ *  9. Slug beta sem tenant, beta pré-existente com users → cria novo BETA
+ * 10. Slug beta sem tenant, sem beta pré-existente → cria novo BETA
  */
 
 import { testApiHandler } from 'next-test-api-route-handler';
@@ -23,8 +27,9 @@ vi.mock('@/auth', () => ({
 vi.mock('@/lib/db', () => ({
   prisma: {
     tenant: {
-      update: vi.fn(),
-      create: vi.fn(),
+      update:    vi.fn(),
+      create:    vi.fn(),
+      findFirst: vi.fn(),
     },
     user: {
       update: vi.fn(),
@@ -47,18 +52,22 @@ const SESSION_SEM_TENANT = {
   user: { id: 'user-2', tenantId: null, name: 'New', email: 'new@b.com' },
 };
 
+const BETA_TENANT_VAZIO     = { id: 'beta-tenant-1', plano: 'BETA', _count: { users: 0 } };
+const BETA_TENANT_COM_USERS = { id: 'beta-tenant-2', plano: 'BETA', _count: { users: 1 } };
+
 // ─── Testes ──────────────────────────────────────────────────────────────────
 
 describe('PATCH /api/tenant/setup', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (auth as ReturnType<typeof vi.fn>).mockResolvedValue(SESSION_COM_TENANT);
-    (prisma.tenant.update as ReturnType<typeof vi.fn>).mockResolvedValue({});
-    (prisma.tenant.create as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'tenant-new' });
-    (prisma.user.update as ReturnType<typeof vi.fn>).mockResolvedValue({});
+    (prisma.tenant.update    as ReturnType<typeof vi.fn>).mockResolvedValue({});
+    (prisma.tenant.create    as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'tenant-new' });
+    (prisma.tenant.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    (prisma.user.update      as ReturnType<typeof vi.fn>).mockResolvedValue({});
   });
 
-  it('slug beta (juninho_eroso) → nome auto-preenchido do perfil', async () => {
+  it('slug beta (usuário com tenant) → atualiza tenant existente com nomeCompleto do perfil', async () => {
     await testApiHandler({
       appHandler: handler,
       async test({ fetch }) {
@@ -75,7 +84,6 @@ describe('PATCH /api/tenant/setup', () => {
         const body = await res.json();
         expect(body.ok).toBe(true);
 
-        // Deve ter chamado update com o nomeCompleto do perfil, não o do body
         const updateCall = (prisma.tenant.update as ReturnType<typeof vi.fn>).mock.calls[0];
         const data = updateCall[0].data;
         expect(data.nomeVereador).toBe('EDMAR LIMA DOS SANTOS');
@@ -84,7 +92,7 @@ describe('PATCH /api/tenant/setup', () => {
     });
   });
 
-  it('slug "outro" → usa nomeVereador do body', async () => {
+  it('slug "outro" (usuário com tenant) → usa nomeVereador do body', async () => {
     await testApiHandler({
       appHandler: handler,
       async test({ fetch }) {
@@ -172,7 +180,7 @@ describe('PATCH /api/tenant/setup', () => {
     });
   });
 
-  it('sem tenant → cria tenant e vincula ao usuário', async () => {
+  it('slug genérico sem tenant → cria TRIAL e vincula ao usuário', async () => {
     (auth as ReturnType<typeof vi.fn>).mockResolvedValue(SESSION_SEM_TENANT);
 
     await testApiHandler({
@@ -182,6 +190,7 @@ describe('PATCH /api/tenant/setup', () => {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            vereadorSlug: 'outro',
             nomeVereador: 'Vereador Novo',
             nomeAssessor: 'Assessor Novo',
           }),
@@ -192,9 +201,95 @@ describe('PATCH /api/tenant/setup', () => {
         const createCall = (prisma.tenant.create as ReturnType<typeof vi.fn>).mock.calls[0];
         expect(createCall[0].data.plano).toBe('TRIAL');
 
-        expect(prisma.user.update as ReturnType<typeof vi.fn>).toHaveBeenCalledOnce();
         const userCall = (prisma.user.update as ReturnType<typeof vi.fn>).mock.calls[0];
         expect(userCall[0].data.tenantId).toBe('tenant-new');
+      },
+    });
+  });
+
+  it('slug beta sem tenant, beta pré-existente sem users → vincula ao beta existente', async () => {
+    (auth as ReturnType<typeof vi.fn>).mockResolvedValue(SESSION_SEM_TENANT);
+    (prisma.tenant.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(BETA_TENANT_VAZIO);
+
+    await testApiHandler({
+      appHandler: handler,
+      async test({ fetch }) {
+        const res = await fetch({
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            vereadorSlug: 'ariani_paz',
+            nomeVereador: 'Ariani',
+            nomeAssessor: 'Assessora Beta',
+          }),
+        });
+        expect(res.status).toBe(200);
+
+        // Não deve criar tenant novo
+        expect(prisma.tenant.create as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+
+        // Deve atualizar o tenant beta existente com plano BETA
+        const updateCall = (prisma.tenant.update as ReturnType<typeof vi.fn>).mock.calls[0];
+        expect(updateCall[0].where.id).toBe('beta-tenant-1');
+        expect(updateCall[0].data.plano).toBe('BETA');
+
+        // Deve vincular o user ao tenant beta
+        const userCall = (prisma.user.update as ReturnType<typeof vi.fn>).mock.calls[0];
+        expect(userCall[0].data.tenantId).toBe('beta-tenant-1');
+      },
+    });
+  });
+
+  it('slug beta sem tenant, beta pré-existente com users → cria novo tenant BETA', async () => {
+    (auth as ReturnType<typeof vi.fn>).mockResolvedValue(SESSION_SEM_TENANT);
+    (prisma.tenant.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(BETA_TENANT_COM_USERS);
+
+    await testApiHandler({
+      appHandler: handler,
+      async test({ fetch }) {
+        const res = await fetch({
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            vereadorSlug: 'marcio_pet',
+            nomeVereador: 'Márcio',
+            nomeAssessor: 'Segundo Assessor',
+          }),
+        });
+        expect(res.status).toBe(200);
+
+        // Deve criar novo tenant
+        expect(prisma.tenant.create as ReturnType<typeof vi.fn>).toHaveBeenCalledOnce();
+        const createCall = (prisma.tenant.create as ReturnType<typeof vi.fn>).mock.calls[0];
+        expect(createCall[0].data.plano).toBe('BETA');
+
+        const userCall = (prisma.user.update as ReturnType<typeof vi.fn>).mock.calls[0];
+        expect(userCall[0].data.tenantId).toBe('tenant-new');
+      },
+    });
+  });
+
+  it('slug beta sem tenant, sem beta pré-existente → cria novo tenant BETA', async () => {
+    (auth as ReturnType<typeof vi.fn>).mockResolvedValue(SESSION_SEM_TENANT);
+    (prisma.tenant.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
+    await testApiHandler({
+      appHandler: handler,
+      async test({ fetch }) {
+        const res = await fetch({
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            vereadorSlug: 'valdemir',
+            nomeVereador: 'Valdemir',
+            nomeAssessor: 'Novo Assessor',
+          }),
+        });
+        expect(res.status).toBe(200);
+
+        expect(prisma.tenant.create as ReturnType<typeof vi.fn>).toHaveBeenCalledOnce();
+        const createCall = (prisma.tenant.create as ReturnType<typeof vi.fn>).mock.calls[0];
+        expect(createCall[0].data.plano).toBe('BETA');
       },
     });
   });

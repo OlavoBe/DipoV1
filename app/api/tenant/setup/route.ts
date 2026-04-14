@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { auth } from '@/auth';
 import { getVereadorOption } from '@/lib/vereadores-options';
+import { isVereadorBeta } from '@/lib/vereadores';
 
 function json(body: unknown, status = 200) {
   return NextResponse.json(body, { status });
@@ -63,13 +64,41 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
       const existingTenantId = session.user.tenantId;
 
       if (existingTenantId) {
-        // Atualiza tenant existente
+        // Usuário já tem tenant — apenas atualiza os dados
         await prisma.tenant.update({
           where: { id: existingTenantId },
           data:  tenantData,
         });
+      } else if (isVereadorBeta(slug)) {
+        // Slug beta sem tenant próprio: tenta vincular ao tenant beta pré-criado
+        // (apenas se ele ainda não tiver assessores vinculados)
+        const betaTenant = await prisma.tenant.findFirst({
+          where: { vereadorSlug: slug },
+          include: { _count: { select: { users: true } } },
+        });
+
+        if (betaTenant && betaTenant._count.users === 0) {
+          // Tenant beta vazio → vincula o assessor a ele e atualiza dados do onboarding
+          await prisma.tenant.update({
+            where: { id: betaTenant.id },
+            data:  { ...tenantData, plano: 'BETA' },
+          });
+          await prisma.user.update({
+            where: { id: userId },
+            data:  { tenantId: betaTenant.id },
+          });
+        } else {
+          // Tenant beta já tem assessores (ou não existe) → cria novo com plano BETA
+          const tenant = await prisma.tenant.create({
+            data: { ...tenantData, plano: 'BETA' },
+          });
+          await prisma.user.update({
+            where: { id: userId },
+            data:  { tenantId: tenant.id },
+          });
+        }
       } else {
-        // Cria novo tenant com plano TRIAL e vincula ao usuário
+        // Slug genérico → cria novo tenant com plano TRIAL
         const tenant = await prisma.tenant.create({
           data: { ...tenantData, plano: 'TRIAL' },
         });
