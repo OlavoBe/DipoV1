@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { isDemoMode } from '@/lib/llm';
 import { auth } from '@/auth';
 import { checkLimite } from '@/lib/planos';
+import { logUsage } from '@/lib/usage-log';
 import type { IndicacaoRequest, IndicacaoResponse } from '@/lib/types';
 
 export const maxDuration = 60; // 60s timeout para LLM
@@ -97,6 +98,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         cep:           extracted.cep        || null,
         tenantId,
       },
+    });
+
+    logUsage(tenantId, ajuste?.trim() ? 'ajuste' : 'generate', session.user.id, {
+      recordId: record.id,
+      categoria: extracted.categoria,
     });
 
     return NextResponse.json({

@@ -17,6 +17,8 @@ export async function GET() {
     indicacoesUltimos7Dias,
     planoBreakdown,
     usuariosRecentes,
+    usageLogsByAction,
+    usageLogsByTenant,
   ] = await Promise.all([
     prisma.user.count(),
     prisma.tenant.count(),
@@ -35,6 +37,21 @@ export async function GET() {
         tenant: { select: { nome: true, plano: true } },
       },
     }),
+    // Contagem por ação nos últimos 7 dias
+    prisma.usageLog.groupBy({
+      by: ['action'],
+      where: { createdAt: { gte: sevenDaysAgo } },
+      _count: { _all: true },
+      orderBy: { _count: { action: 'desc' } },
+    }),
+    // Contagem por tenant nos últimos 7 dias (top 20)
+    prisma.usageLog.groupBy({
+      by: ['tenantId'],
+      where: { createdAt: { gte: sevenDaysAgo } },
+      _count: { _all: true },
+      orderBy: { _count: { tenantId: 'desc' } },
+      take: 20,
+    }),
   ]);
 
   return NextResponse.json({
@@ -44,5 +61,7 @@ export async function GET() {
     indicacoesUltimos7Dias,
     planoBreakdown,
     usuariosRecentes,
+    usageLogsByAction:  usageLogsByAction.map(r => ({ action: r.action, count: r._count._all })),
+    usageLogsByTenant:  usageLogsByTenant.map(r => ({ tenantId: r.tenantId, count: r._count._all })),
   });
 }

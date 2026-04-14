@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
+import { logUsage } from '@/lib/usage-log';
 
 export async function PATCH(
   req: NextRequest,
@@ -38,6 +39,8 @@ export async function PATCH(
     where: { id },
     data: { feedback, feedbackEm: new Date() },
   });
+
+  logUsage(tenantId, feedback === 1 ? 'feedback_positive' : 'feedback_negative', session.user.id, { indicacaoId: id });
 
   return NextResponse.json({ ok: true });
 }

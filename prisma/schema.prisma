@@ -79,6 +79,21 @@ model Indicacao {
 // Template
 // ─────────────────────────────────────────────
 
+// ─────────────────────────────────────────────
+// UsageLog  (métricas do beta)
+// ─────────────────────────────────────────────
+
+model UsageLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String?
+  action    String   // 'generate' | 'feedback_positive' | 'feedback_negative' | 'download_pdf' | 'download_docx' | 'copy_text' | 'regenerate' | 'ajuste'
+  metadata  String?  // JSON opcional com detalhes extras
+  createdAt DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────
+
 model Template {
   id        String   @id @default(cuid())
   name      String   @default("default")

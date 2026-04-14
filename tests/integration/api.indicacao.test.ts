@@ -29,6 +29,9 @@ vi.mock('@/lib/db', () => ({
     indicacao: {
       create: vi.fn(),
     },
+    usageLog: {
+      create: vi.fn().mockResolvedValue({}),
+    },
   },
 }));
 
