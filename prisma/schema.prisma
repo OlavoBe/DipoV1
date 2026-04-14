@@ -45,6 +45,7 @@ model Tenant {
   nomePartido   String   @default("")
   municipio     String   @default("Guarujá")
   nomeAssessor  String   @default("")
+  vereadorSlug  String   @default("outro")
 
   indicacoes Indicacao[]
   templates  Template[]

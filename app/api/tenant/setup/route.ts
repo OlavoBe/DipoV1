@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { auth } from '@/auth';
+import { getVereadorOption } from '@/lib/vereadores-options';
 
 function json(body: unknown, status = 200) {
   return NextResponse.json(body, { status });
@@ -25,6 +26,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     const userId = session.user.id;
 
     const body: {
+      vereadorSlug?: string;
       nomeVereador?: string;
       nomePartido?: string;
       municipio?: string;
@@ -32,7 +34,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
       complete?: boolean;
     } = await req.json();
 
-    const { nomeVereador, nomePartido, municipio, nomeAssessor, complete } = body;
+    const { vereadorSlug, nomeVereador, nomePartido, municipio, nomeAssessor, complete } = body;
 
     // ── Passo 1: setup dos dados do gabinete ──
     if (nomeVereador !== undefined || nomeAssessor !== undefined) {
@@ -42,10 +44,18 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
       if (!v) return json({ error: 'Nome do vereador é obrigatório.' }, 400);
       if (!a) return json({ error: 'Nome do assessor é obrigatório.' }, 400);
 
+      const slug = vereadorSlug?.trim() || 'outro';
+
+      // Se for um vereador beta, usa os dados do perfil para nome e partido
+      const betaPerfil = getVereadorOption(slug);
+      const nomeVereadorFinal = betaPerfil?.nomeCompleto ?? v;
+      const nomePartidoFinal  = betaPerfil?.partido      ?? (nomePartido?.trim() ?? '');
+
       const tenantData = {
-        nome:         `Gabinete do Vereador ${v}`,
-        nomeVereador: v,
-        nomePartido:  nomePartido?.trim() ?? '',
+        nome:         `Gabinete do Vereador ${nomeVereadorFinal}`,
+        vereadorSlug: slug,
+        nomeVereador: nomeVereadorFinal,
+        nomePartido:  nomePartidoFinal,
         municipio:    municipio?.trim() || 'Guarujá',
         nomeAssessor: a,
       };

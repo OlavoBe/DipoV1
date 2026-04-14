@@ -23,12 +23,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const body: IndicacaoRequest & { templateId?: string } = await req.json();
     const { texto, complementos, templateId } = body;
 
-    // Lê o vereadorSlug do tenant para personalizar o prompt.
-    // O campo será adicionado ao schema Tenant no próximo passo (prisma migration).
+    // Lê o vereadorSlug do tenant para personalizar o prompt
     const tenantData = await prisma.tenant.findUnique({
       where: { id: tenantId },
-      select: { plano: true },
-    }) as { plano: string; vereadorSlug?: string | null } | null;
+      select: { plano: true, vereadorSlug: true },
+    });
     const vereadorSlug = tenantData?.vereadorSlug ?? undefined;
 
     if (!texto || typeof texto !== 'string' || texto.trim().length < 10) {

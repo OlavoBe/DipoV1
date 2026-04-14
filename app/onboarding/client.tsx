@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Check, Building2, FileText, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { VEREADOR_OPTIONS, getVereadorOption } from '@/lib/vereadores-options';
 
 // ─────────────────────────────────────────────
 // Types
@@ -12,8 +13,10 @@ import { cn } from '@/lib/utils';
 type Step = 1 | 2 | 3;
 
 interface Step1Data {
-  nomeVereador: string;
-  nomePartido: string;
+  vereadorSlug: string;        // slug selecionado no dropdown
+  nomeVereadorCustom: string;  // preenchido apenas quando slug === 'outro'
+  nomeVereador: string;        // auto-preenchido (beta) ou digitado (outro)
+  nomePartido: string;         // auto-preenchido (beta) ou digitado (outro)
   nomeAssessor: string;
   municipio: string;
 }
@@ -143,10 +146,12 @@ export default function OnboardingClient({ prefill }: Props) {
 
   // ── Formulário passo 1 ───────────────────────
   const [form, setForm] = useState<Step1Data>({
-    nomeVereador: prefill?.nomeVereador ?? '',
-    nomePartido:  prefill?.nomePartido  ?? '',
-    nomeAssessor: prefill?.nomeAssessor ?? '',
-    municipio:    prefill?.municipio    ?? 'Guarujá',
+    vereadorSlug:       '',
+    nomeVereadorCustom: '',
+    nomeVereador:       prefill?.nomeVereador ?? '',
+    nomePartido:        prefill?.nomePartido  ?? '',
+    nomeAssessor:       prefill?.nomeAssessor ?? '',
+    municipio:          prefill?.municipio    ?? 'Guarujá',
   });
 
   const [errors, setErrors] = useState<Partial<Record<keyof Step1Data, string>>>({});
@@ -156,12 +161,43 @@ export default function OnboardingClient({ prefill }: Props) {
     setErrors((e) => ({ ...e, [field]: undefined }));
   }
 
+  /** Ao selecionar um slug: auto-preenche nome e partido se for beta */
+  function handleSlugChange(slug: string) {
+    const perfil = getVereadorOption(slug);
+    setErrors((e) => ({ ...e, vereadorSlug: undefined, nomeVereador: undefined }));
+    if (perfil) {
+      setForm((f) => ({
+        ...f,
+        vereadorSlug:       slug,
+        nomeVereador:       perfil.nomeCompleto,
+        nomePartido:        perfil.partido,
+        nomeVereadorCustom: '',
+      }));
+    } else {
+      // 'outro' ou vazio
+      setForm((f) => ({
+        ...f,
+        vereadorSlug:       slug,
+        nomeVereador:       '',
+        nomePartido:        '',
+        nomeVereadorCustom: '',
+      }));
+    }
+  }
+
+  const isBeta = !!getVereadorOption(form.vereadorSlug);
+
   // ── Passo 1: validar e salvar ────────────────
   async function handleStep1() {
     const newErrors: typeof errors = {};
-    if (!form.nomeVereador.trim()) newErrors.nomeVereador = 'Campo obrigatório';
-    if (!form.nomeAssessor.trim()) newErrors.nomeAssessor = 'Campo obrigatório';
+    if (!form.vereadorSlug)                                        newErrors.vereadorSlug = 'Selecione o gabinete';
+    if (form.vereadorSlug === 'outro' && !form.nomeVereadorCustom.trim()) newErrors.nomeVereadorCustom = 'Campo obrigatório';
+    if (!form.nomeAssessor.trim())                                 newErrors.nomeAssessor = 'Campo obrigatório';
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
+
+    const nomeVereadorFinal = isBeta
+      ? form.nomeVereador
+      : form.nomeVereadorCustom.trim();
 
     setSaving(true);
     try {
@@ -169,15 +205,16 @@ export default function OnboardingClient({ prefill }: Props) {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          nomeVereador: form.nomeVereador.trim(),
-          nomePartido:  form.nomePartido.trim(),
-          municipio:    form.municipio.trim() || 'Guarujá',
-          nomeAssessor: form.nomeAssessor.trim(),
+          vereadorSlug:  form.vereadorSlug,
+          nomeVereador:  nomeVereadorFinal,
+          nomePartido:   form.nomePartido.trim(),
+          municipio:     form.municipio.trim() || 'Guarujá',
+          nomeAssessor:  form.nomeAssessor.trim(),
         }),
       });
       if (!res.ok) {
         const data = await res.json();
-        setErrors({ nomeVereador: data.error });
+        setErrors({ vereadorSlug: data.error });
         return;
       }
       setStep(2);
@@ -256,39 +293,92 @@ export default function OnboardingClient({ prefill }: Props) {
                 </div>
 
                 <div className="space-y-4">
-                  {/* Nome do Vereador */}
+                  {/* Dropdown — Gabinete do Vereador */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Nome do Vereador <span className="text-red-500">*</span>
+                      Gabinete do Vereador <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
-                      className={cn('input-base', errors.nomeVereador && 'border-red-400 focus:ring-red-400')}
-                      placeholder="Ex: João da Silva"
-                      value={form.nomeVereador}
-                      onChange={(e) => setField('nomeVereador', e.target.value)}
-                    />
-                    {errors.nomeVereador && (
-                      <p className="text-xs text-red-500 mt-1">{errors.nomeVereador}</p>
+                    <select
+                      className={cn(
+                        'input-base bg-white',
+                        errors.vereadorSlug && 'border-red-400 focus:ring-red-400',
+                      )}
+                      value={form.vereadorSlug}
+                      onChange={(e) => handleSlugChange(e.target.value)}
+                    >
+                      <option value="">Selecione o vereador…</option>
+                      {VEREADOR_OPTIONS.map((v) => (
+                        <option key={v.slug} value={v.slug}>{v.label}</option>
+                      ))}
+                      <option value="outro">Outro vereador</option>
+                    </select>
+                    {errors.vereadorSlug && (
+                      <p className="text-xs text-red-500 mt-1">{errors.vereadorSlug}</p>
                     )}
                   </div>
 
-                  {/* Nome do Partido */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Partido{' '}
-                      <span className="text-gray-400 font-normal">(opcional)</span>
-                    </label>
-                    <input
-                      type="text"
-                      className="input-base"
-                      placeholder="Ex: MDB, PT, PL…"
-                      value={form.nomePartido}
-                      onChange={(e) => setField('nomePartido', e.target.value)}
-                    />
-                  </div>
+                  {/* Nome do vereador — readonly se beta, editável se 'outro' */}
+                  {form.vereadorSlug && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Nome do Vereador <span className="text-red-500">*</span>
+                        {isBeta && (
+                          <span className="ml-2 text-xs font-normal text-gray-400">
+                            Preenchido automaticamente
+                          </span>
+                        )}
+                      </label>
+                      {isBeta ? (
+                        <input
+                          type="text"
+                          className="input-base bg-gray-50 text-gray-500 cursor-not-allowed"
+                          value={form.nomeVereador}
+                          readOnly
+                        />
+                      ) : (
+                        <>
+                          <input
+                            type="text"
+                            className={cn('input-base', errors.nomeVereadorCustom && 'border-red-400 focus:ring-red-400')}
+                            placeholder="Nome completo do vereador"
+                            value={form.nomeVereadorCustom}
+                            onChange={(e) => setField('nomeVereadorCustom', e.target.value)}
+                          />
+                          {errors.nomeVereadorCustom && (
+                            <p className="text-xs text-red-500 mt-1">{errors.nomeVereadorCustom}</p>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
 
-                  {/* Nome do Assessor */}
+                  {/* Partido */}
+                  {form.vereadorSlug && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Partido{' '}
+                        <span className="text-gray-400 font-normal">(opcional)</span>
+                        {isBeta && form.nomePartido && (
+                          <span className="ml-2 text-xs font-normal text-gray-400">
+                            Preenchido automaticamente
+                          </span>
+                        )}
+                      </label>
+                      <input
+                        type="text"
+                        className={cn(
+                          'input-base',
+                          isBeta && 'bg-gray-50 text-gray-500 cursor-not-allowed',
+                        )}
+                        placeholder="Ex: MDB, PT, PL…"
+                        value={form.nomePartido}
+                        readOnly={isBeta}
+                        onChange={isBeta ? undefined : (e) => setField('nomePartido', e.target.value)}
+                      />
+                    </div>
+                  )}
+
+                  {/* Assessor responsável */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       Assessor responsável <span className="text-red-500">*</span>
