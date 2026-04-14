@@ -13,7 +13,7 @@ import type { ExtractedData } from './types';
 function capitalizeWords(s: string): string {
   if (!s) return s;
   // Preposições e artigos que ficam em minúsculas
-  const excecoes = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'a', 'o', 'em', 'no', 'na']);
+  const excecoes = new Set(['de', 'da', 'do', 'das', 'dos', 'os', 'as', 'e', 'a', 'o', 'em', 'no', 'na', 'nos', 'nas']);
   return s
     .toLowerCase()
     .split(' ')

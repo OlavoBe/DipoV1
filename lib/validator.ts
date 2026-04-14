@@ -73,6 +73,7 @@ const ExtractedDataSchema = z.object({
  * Não lança exceção: retorna o dado com defaults aplicados.
  */
 export function validateData(raw: unknown): ExtractedData {
+  if (raw === null || raw === undefined) raw = {};
   const result = ExtractedDataSchema.safeParse(raw);
 
   if (result.success) {
@@ -100,9 +101,12 @@ export function validateData(raw: unknown): ExtractedData {
   // Se Zod falhou, tenta recuperar com defaults manuais
   console.warn('[validator] Zod parse falhou, aplicando defaults manuais:', result.error.issues);
   const fallback = raw as Record<string, unknown>;
+  const categoriaRaw = String(fallback.categoria ?? '');
 
   return {
-    categoria:               (fallback.categoria as IndicacaoCategoria) || 'outros',
+    categoria: CATEGORIAS_VALIDAS.includes(categoriaRaw as IndicacaoCategoria)
+      ? (categoriaRaw as IndicacaoCategoria)
+      : 'outros',
     tema:                    String(fallback.tema || ''),
     descricao_problema:      String(fallback.descricao_problema || ''),
     providencias_sugeridas:  Array.isArray(fallback.providencias_sugeridas) ? fallback.providencias_sugeridas as string[] : [],
