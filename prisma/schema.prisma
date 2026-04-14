@@ -17,6 +17,7 @@ datasource db {
 enum Plano {
   DEMO
   TRIAL
+  BETA
   PRO_ASSESSOR
   PRO_GABINETE
   CAMARA

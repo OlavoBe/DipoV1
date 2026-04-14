@@ -123,16 +123,15 @@ app/api/test-login/route.ts      ← endpoint que cria a sessão no banco
 
 | Plano        | Limite                          |
 |--------------|---------------------------------|
-| DEMO         | Bloqueado na rota autenticada   |
+| DEMO         | Bloqueado na rota autenticada    |
 | TRIAL        | 5 indicações nas últimas 3 horas |
-| PRO_ASSESSOR | Ilimitado                       |
-| PRO_GABINETE | Ilimitado                       |
-| CAMARA       | Ilimitado                       |
+| BETA         | Ilimitado (testadores)           |
+| PRO_ASSESSOR | Ilimitado                        |
+| PRO_GABINETE | Ilimitado                        |
+| CAMARA       | Ilimitado                        |
 
 A demo pública (`/demo` + `/api/demo`) tem limite separado: 1 geração por IP por dia,
 controlado pela tabela `DemoUso`.
-
-| BETA         | Sem limite (testadores beta)    |
 
 ---
 
