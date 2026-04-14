@@ -82,7 +82,29 @@ function Stepper({ current }: { current: Step }) {
 // Template Preview (passo 2)
 // ─────────────────────────────────────────────
 
-function TemplatePreview() {
+function TemplatePreview({ vereadorSlug }: { vereadorSlug: string }) {
+  const perfil = getVereadorOption(vereadorSlug);
+
+  // Saudação: Valdemir usa tipo_a (caixa alta formal), os demais usam tipo_b
+  const saudacaoTipoA = vereadorSlug === 'valdemir';
+  const usaCaixaAlta  = vereadorSlug === 'ariani_paz';
+
+  const nomeAssinatura = perfil?.nomeCompleto ?? 'Vereador(a)';
+
+  const saudacao = saudacaoTipoA ? (
+    <p className="mb-3 whitespace-pre-line">
+      {'SENHOR PRESIDENTE,\nSENHORAS VEREADORAS,\nSENHORES VEREADORES;'}
+    </p>
+  ) : (
+    <p className="mb-3 whitespace-pre-line">
+      {'Sr. Presidente,\nSras. Vereadoras e\nSrs. Vereadores.'}
+    </p>
+  );
+
+  const corpo = usaCaixaAlta
+    ? 'O VEREADOR ABAIXO ASSINADO, NO USO DE SUAS ATRIBUIÇÕES LEGAIS E REGIMENTAIS, INDICA AO EXCELENTÍSSIMO SENHOR PREFEITO MUNICIPAL QUE DETERMINE AO SETOR COMPETENTE A ADOÇÃO DAS PROVIDÊNCIAS NECESSÁRIAS.'
+    : 'O Vereador abaixo assinado, no uso de suas atribuições legais e regimentais, indica ao Excelentíssimo Senhor Prefeito Municipal que determine ao setor competente a adoção das providências necessárias para atendimento ao pleito da comunidade.';
+
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-5 font-serif text-[13px] leading-relaxed text-gray-800 select-none pointer-events-none">
       {/* Cabeçalho */}
@@ -93,31 +115,25 @@ function TemplatePreview() {
       </div>
 
       {/* Número */}
-      <p className="font-semibold text-center mb-4">INDICAÇÃO Nº ___/2025</p>
+      <p className="font-semibold text-center mb-4">INDICAÇÃO Nº ___/2026</p>
 
-      {/* Vocativo */}
-      <p className="mb-3">Senhor Presidente,</p>
+      {/* Vocativo / Saudação */}
+      {saudacao}
 
       {/* Corpo */}
-      <p className="text-justify mb-3 indent-6">
-        O Vereador abaixo assinado, no uso de suas atribuições legais e regimentais,
-        indica ao Excelentíssimo Senhor Prefeito Municipal que determine ao setor
-        competente a adoção das providências necessárias para atendimento ao
-        pleito da comunidade.
-      </p>
-
-      <p className="text-justify mb-4 indent-6">
-        A presente indicação visa suprir demanda legítima dos munícipes,
-        contribuindo para a melhoria da qualidade de vida da população local.
+      <p className={cn('text-justify mb-4 indent-6', usaCaixaAlta && 'uppercase')}>
+        {corpo}
       </p>
 
       {/* Local e data */}
-      <p className="mb-6">Guarujá, {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}.</p>
+      <p className="mb-6">
+        Guarujá, {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}.
+      </p>
 
       {/* Assinatura */}
-      <div className="text-center mt-6 pt-4 border-t border-gray-400 w-56 mx-auto">
-        <p className="font-bold uppercase text-xs tracking-wide">Vereador</p>
-        <p className="text-xs text-gray-500">Câmara Municipal</p>
+      <div className="text-center mt-6 pt-4 border-t border-gray-400 w-64 mx-auto">
+        <p className="font-bold uppercase text-xs tracking-wide">{nomeAssinatura}</p>
+        <p className="text-xs text-gray-500">Câmara Municipal de Guarujá</p>
       </div>
     </div>
   );
@@ -447,6 +463,13 @@ export default function OnboardingClient({ prefill }: Props) {
                       <p className="text-sm text-gray-600 leading-relaxed">{text}</p>
                     </div>
                   ))}
+                </div>
+
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">
+                    Preview do template
+                  </p>
+                  <TemplatePreview vereadorSlug={form.vereadorSlug} />
                 </div>
 
                 <p className="text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2">
