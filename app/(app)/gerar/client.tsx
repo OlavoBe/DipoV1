@@ -16,6 +16,8 @@ import {
   Clock,
   ThumbsUp,
   ThumbsDown,
+  ChevronDown,
+  Pencil,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ExtractedData } from '@/lib/types';
@@ -269,6 +271,70 @@ function CopyButton({ text }: { text: string }) {
 }
 
 // ─────────────────────────────────────────────
+// AjusteAccordion
+// ─────────────────────────────────────────────
+
+interface AjusteAccordionProps {
+  onAjuste: (ajuste: string) => void;
+  loading: boolean;
+}
+
+function AjusteAccordion({ onAjuste, loading }: AjusteAccordionProps) {
+  const [open, setOpen] = useState(false);
+  const [ajuste, setAjuste] = useState('');
+
+  function handleSubmit() {
+    if (!ajuste.trim() || loading) return;
+    onAjuste(ajuste.trim());
+    setOpen(false);
+    setAjuste('');
+  }
+
+  return (
+    <div className="border-t border-gray-100">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors"
+      >
+        <span className="flex items-center gap-1.5 font-medium">
+          <Pencil className="h-3.5 w-3.5" />
+          Ajustar indicação
+        </span>
+        <ChevronDown
+          className={cn('h-3.5 w-3.5 transition-transform duration-200', open && 'rotate-180')}
+        />
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 space-y-2 animate-fade-in">
+          <textarea
+            className="textarea-base text-sm"
+            style={{ minHeight: 72 }}
+            placeholder="Ex: adicione que fica perto da escola, troque o bairro para Enseada…"
+            value={ajuste}
+            onChange={(e) => setAjuste(e.target.value)}
+            disabled={loading}
+            autoFocus
+          />
+          <button
+            className="btn-primary w-full text-sm"
+            onClick={handleSubmit}
+            disabled={!ajuste.trim() || loading}
+          >
+            {loading ? (
+              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Gerando...</>
+            ) : (
+              <><RefreshCw className="h-3.5 w-3.5" /> Regenerar com ajuste</>
+            )}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // ResultCard
 // ─────────────────────────────────────────────
 
@@ -276,9 +342,11 @@ interface ResultCardProps {
   state: ResultState;
   onRetry: () => void;
   onRegenerate: () => void;
+  onAjuste: (ajuste: string) => void;
+  loadingAjuste: boolean;
 }
 
-function ResultCard({ state, onRetry, onRegenerate }: ResultCardProps) {
+function ResultCard({ state, onRetry, onRegenerate, onAjuste, loadingAjuste }: ResultCardProps) {
   // ── empty ──────────────────────────────────
   if (state.kind === 'empty') {
     return (
@@ -345,6 +413,9 @@ function ResultCard({ state, onRetry, onRegenerate }: ResultCardProps) {
             Nova indicação
           </button>
         </div>
+
+        {/* Ajuste */}
+        <AjusteAccordion onAjuste={onAjuste} loading={loadingAjuste} />
 
         {/* Feedback */}
         <div className="px-4 pb-3">
@@ -453,7 +524,7 @@ export default function GerarPageClient({
 
   // ── Chamada à API ───────────────────────────
   const handleGerar = useCallback(
-    async (textoInput: string, complementos?: Record<string, string>) => {
+    async (textoInput: string, complementos?: Record<string, string>, ajuste?: string) => {
       if (textoInput.trim().length < 10) return;
 
       setResult({ kind: 'loading', step: 0 });
@@ -463,7 +534,7 @@ export default function GerarPageClient({
         const res = await fetch('/api/indicacao', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ texto: textoInput, complementos }),
+          body: JSON.stringify({ texto: textoInput, complementos, ajuste }),
         });
 
         if (res.status === 402) {
@@ -615,6 +686,8 @@ export default function GerarPageClient({
           state={result}
           onRetry={handleRetry}
           onRegenerate={handleRegenerate}
+          onAjuste={(ajuste) => handleGerar(texto, questions?.complementos, ajuste)}
+          loadingAjuste={isLoading}
         />
       </div>
     </div>

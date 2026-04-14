@@ -20,8 +20,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ status: 'error', error: 'Usuário sem tenant vinculado.' }, { status: 403 });
     }
 
-    const body: IndicacaoRequest & { templateId?: string } = await req.json();
-    const { texto, complementos, templateId } = body;
+    const body: IndicacaoRequest & { templateId?: string; ajuste?: string } = await req.json();
+    const { texto, complementos, templateId, ajuste } = body;
 
     // Lê o vereadorSlug do tenant para personalizar o prompt
     const tenantData = await prisma.tenant.findUnique({
@@ -62,8 +62,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
+    // Se há instrução de ajuste, incorpora ao texto antes de enviar ao pipeline
+    const textoParaPipeline = ajuste?.trim()
+      ? `${texto.trim()}\n\nAJUSTE SOLICITADO PELO ASSESSOR: ${ajuste.trim()}`
+      : texto.trim();
+
     // ── Pipeline: Extract → Validate → Normalize → Generate ──
-    const result = await indicacaoPipeline(texto.trim(), complementos, templateId, vereadorSlug);
+    const result = await indicacaoPipeline(textoParaPipeline, complementos, templateId, vereadorSlug);
 
     if (result.status === 'error') {
       return NextResponse.json({ status: 'error', error: result.message }, { status: 500 });
