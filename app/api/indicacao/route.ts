@@ -23,6 +23,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const body: IndicacaoRequest & { templateId?: string } = await req.json();
     const { texto, complementos, templateId } = body;
 
+    // Lê o vereadorSlug do tenant para personalizar o prompt.
+    // O campo será adicionado ao schema Tenant no próximo passo (prisma migration).
+    const tenantData = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { plano: true },
+    }) as { plano: string; vereadorSlug?: string | null } | null;
+    const vereadorSlug = tenantData?.vereadorSlug ?? undefined;
+
     if (!texto || typeof texto !== 'string' || texto.trim().length < 10) {
       return NextResponse.json(
         { status: 'error', error: 'Texto muito curto. Descreva o problema com mais detalhes.' },
@@ -56,7 +64,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     // ── Pipeline: Extract → Validate → Normalize → Generate ──
-    const result = await indicacaoPipeline(texto.trim(), complementos, templateId);
+    const result = await indicacaoPipeline(texto.trim(), complementos, templateId, vereadorSlug);
 
     if (result.status === 'error') {
       return NextResponse.json({ status: 'error', error: result.message }, { status: 500 });

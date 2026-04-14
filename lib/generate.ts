@@ -8,6 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import { callLLMGenerate } from './llm';
 import { getTemplate } from './template';
+import { getVereadorPerfil } from './vereadores';
 import type { ExtractedData, IndicacaoCategoria } from './types';
 
 // ─────────────────────────────────────────────
@@ -143,7 +144,7 @@ function buildFewShotBlock(exemplos: IndicacaoExemplo[]): string {
 }
 
 // ─────────────────────────────────────────────
-// System Prompt — dinâmico por categoria
+// System Prompt — dinâmico por vereador e categoria
 // ─────────────────────────────────────────────
 
 async function buildSystemPrompt(
@@ -153,8 +154,6 @@ async function buildSystemPrompt(
   vereadorSlug?: string,
 ): Promise<string> {
   const t = await getTemplate(templateId);
-  const vereador    = t.vereador.nome || 'MÁRCIO NABOR TARDELLI';
-  const cargo       = t.vereador.cargo || 'Vereador';
   const prefeito    = t.vereador.nomePrefeito || 'Farid Said Madi';
   const sala        = t.vereador.salaLocal || 'Sala Alberto Santos Dumont';
   const instituicao = t.institution.name || 'Câmara Municipal de Guarujá';
@@ -164,13 +163,9 @@ async function buildSystemPrompt(
   const hoje        = new Date();
   const dataExtenso = `${hoje.getDate()} de ${meses[hoje.getMonth()]} de ${anoAtual}`;
 
-  // Instrução de justificativa adaptada por categoria
   const isServico = !categoria || categoria === 'servico_urbano' || categoria === 'seguranca_publica';
-  const justificativaInstruction = isServico
-    ? '[Parágrafo objetivo com: origem da solicitação se informada (ex: "Fomos procurados por moradores..."), endereço completo com trecho de localização, bairro, Município Guarujá/SP, descrição do problema e impacto na segurança/saúde pública/mobilidade]'
-    : '[Parágrafo de justificativa: contexto do tema, importância para o Município de Guarujá/SP, benefícios esperados para a comunidade]';
 
-  // Regras técnicas por categoria
+  // Regras técnicas por categoria (comuns a todos os vereadores)
   const regrasCategorias = isServico
     ? `- Mencione a origem do pedido se informada (ex: "Fomos procurados por moradores...")
 - Se envolver canal ou drenagem: incluir "desassoreamento e limpeza com maquinário apropriado"
@@ -185,6 +180,88 @@ async function buildSystemPrompt(
   // Few-shot: exemplos históricos relevantes (filtrados por vereador se disponível)
   const exemplos = loadFewShotExamples(categoria ?? 'servico_urbano', tiposServico, vereadorSlug);
   const fewShotBlock = buildFewShotBlock(exemplos);
+
+  // ── Prompt personalizado por perfil de vereador ────────────────
+  const perfil = vereadorSlug && vereadorSlug !== 'outro'
+    ? getVereadorPerfil(vereadorSlug)
+    : null;
+
+  if (perfil) {
+    const prefeitoEfetivo = perfil.nomePrefeito || prefeito;
+    const salaEfetiva     = perfil.salaLocal || sala;
+
+    // A) Saudação
+    const saudacao = perfil.saudacao === 'tipo_a'
+      ? 'SENHOR PRESIDENTE,\nSENHORAS VEREADORAS,\nSENHORES VEREADORES;'
+      : 'Sr. Presidente,\nSras. Vereadoras e\nSrs. Vereadores.';
+
+    // B) Instrução de justificativa
+    let justificativaInstrucao: string;
+    if (!perfil.temJustificativa || perfil.estiloJustificativa === 'ausente') {
+      justificativaInstrucao = 'NÃO inclua bloco de justificativa. Vá direto da saudação para "INDICAÇÃO Nº".';
+    } else if (perfil.estiloJustificativa === 'narrativa_demanda') {
+      const prefixo = perfil.prefixoDemanda ?? 'Fomos procurados por moradores';
+      justificativaInstrucao = `Inclua parágrafo de justificativa ANTES de "INDICAÇÃO Nº" começando com "${prefixo} da localidade que relataram..." descrevendo o problema, o endereço completo e o impacto na comunidade.`;
+    } else if (perfil.estiloJustificativa === 'argumentacao_tecnica') {
+      justificativaInstrucao = 'Inclua 1-2 parágrafos de justificativa técnica formal e detalhada ANTES de "INDICAÇÃO Nº", explicando a necessidade da medida, o embasamento legal ou técnico pertinente e seus impactos na qualidade de vida e segurança da população.';
+    } else {
+      justificativaInstrucao = 'NÃO inclua bloco de justificativa. Vá direto da saudação para "INDICAÇÃO Nº".';
+    }
+
+    // C) Estilo do corpo
+    let estiloCorpoInstrucao: string;
+    if (perfil.estiloCorpo === 'variacao_1') {
+      estiloCorpoInstrucao = `Use EXATAMENTE esta fórmula para o corpo:\n"Indicamos a mesa que, seja oficiado ao Excelentíssimo Sr. Prefeito de Guarujá, ${prefeitoEfetivo} e a Secretaria competente, em caráter de urgência, providências no sentido de realizar o serviço de [SERVIÇO] na [ENDEREÇO], no bairro [BAIRRO], para melhor qualidade de vida e segurança da população."`;
+    } else if (perfil.estiloCorpo === 'variacao_3') {
+      estiloCorpoInstrucao = `Use EXATAMENTE esta fórmula para o corpo:\n"Indico à Mesa, ouvido o douto plenário, para que seja oficiado o Sr. Prefeito Municipal de Guarujá, Sr. ${prefeitoEfetivo.toUpperCase()}, para que determine ao setor competente [PROVIDÊNCIA EM CAIXA ALTA]."`;
+    } else {
+      // variacao_2 (padrão)
+      estiloCorpoInstrucao = `Use EXATAMENTE esta fórmula para o corpo:\n"Indico à Mesa, nos termos regimentais, que seja oficiado ao Excelentíssimo Senhor Prefeito Municipal de Guarujá, ${prefeitoEfetivo}, para que determine ao setor competente:\n\n[Lista numerada das providências solicitadas — use EXATAMENTE as providências fornecidas nos dados]"`;
+    }
+
+    // D) Caixa alta
+    const caixaAltaRegra = perfil.usaCaixaAlta
+      ? '\n- O CORPO DA INDICAÇÃO DEVE SER ESCRITO INTEIRAMENTE EM CAIXA ALTA (letras maiúsculas), incluindo saudação e corpo'
+      : '';
+
+    // E) CEP
+    const cepRegra = perfil.cepSemprePresente
+      ? '\n- O CEP DEVE SEMPRE ser incluído no endereço, mesmo que precise ser estimado'
+      : '';
+
+    return `Você é um redator especializado em indicações legislativas para a ${instituicao}.
+
+REGRAS ABSOLUTAS:
+- Nunca use emojis
+- Nunca use opinião pessoal
+- Nunca ataque pessoas
+- Nunca use termos ofensivos
+- Linguagem formal legislativa
+- Texto enxuto — máximo 500 palavras
+- Use termos técnicos adequados
+- Sempre mencionar o prefeito: ${prefeitoEfetivo}
+- Nunca incluir explicações, comentários, markdown ou qualquer texto fora da indicação${caixaAltaRegra}${cepRegra}
+${regrasCategorias}${fewShotBlock}
+
+ESTRUTURA OBRIGATÓRIA (siga exatamente, nesta ordem):
+
+${saudacao}
+
+[JUSTIFICATIVA: ${justificativaInstrucao}]
+
+INDICAÇÃO Nº ____ /${anoAtual}
+
+${estiloCorpoInstrucao}
+
+${salaEfetiva}, ${dataExtenso}.
+
+Retorne APENAS o texto final da indicação, sem incluir nome ou assinatura do vereador. Nenhum texto adicional.`;
+  }
+
+  // ── Prompt genérico — fallback (comportamento original) ────────
+  const justificativaInstruction = isServico
+    ? '[Parágrafo objetivo com: origem da solicitação se informada (ex: "Fomos procurados por moradores..."), endereço completo com trecho de localização, bairro, Município Guarujá/SP, descrição do problema e impacto na segurança/saúde pública/mobilidade]'
+    : '[Parágrafo de justificativa: contexto do tema, importância para o Município de Guarujá/SP, benefícios esperados para a comunidade]';
 
   return `Você é um redator especializado em indicações legislativas para a ${instituicao}.
 
