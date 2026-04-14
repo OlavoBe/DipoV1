@@ -46,6 +46,7 @@
     "@types/react-dom": "^18",
     "@vitest/coverage-v8": "^4.1.4",
     "autoprefixer": "^10",
+    "next-test-api-route-handler": "^5.0.4",
     "postcss": "^8",
     "prisma": "^5.11.0",
     "tailwindcss": "^3",
