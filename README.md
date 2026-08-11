@@ -275,12 +275,34 @@ Por isso `0_init` **não** inclui o que as três migrations posteriores fazem �
 **não devem ser editadas**, porque já foram aplicadas em produção e qualquer alteração
 quebra o checksum do Prisma.
 
-> A sequência foi conferida por revisão do SQL, mas ainda não foi executada contra um
-> Postgres do zero. Antes de confiar nela para provisionar um ambiente novo, rode
-> `npx prisma migrate deploy` em um banco descartável e compare com
-> `npx prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url <url-descartavel>`.
+O CI aplica as migrations em um Postgres limpo a cada push e verifica que a sequência
+reproduz exatamente o `schema.prisma` — então uma migration quebrada ou fora de sincronia
+com o schema falha antes de chegar em produção.
 
 Novas migrations devem ser commitadas normalmente.
+
+## Integração contínua
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) roda em todo push para `master`,
+em todo pull request e sob demanda. Sobe um Postgres descartável e executa, nesta ordem:
+
+| Etapa | O que valida |
+|---|---|
+| `npm ci` | O lockfile instala de forma reprodutível |
+| `prisma generate` | O schema gera client válido |
+| `tsc --noEmit` | Não há erro de tipo |
+| `npm test` | Os 134 testes (unit + integration) |
+| `prisma migrate deploy` | As migrations sobem um banco do zero |
+| `prisma migrate diff --exit-code` | As migrations batem com o `schema.prisma` (sem drift) |
+| `npm run build` | O build de produção passa |
+| `npm audit` | Vulnerabilidades conhecidas (informativo, não bloqueia) |
+
+As checagens rápidas vêm primeiro para o run falhar em segundos quando for erro trivial.
+As variáveis de ambiente do job são fictícias — nenhuma chamada externa real acontece no
+CI, e o build não conecta ao banco.
+
+Os testes E2E (Playwright) **não** estão no CI: exigem servidor de pé e banco populado.
+Rode localmente com `npm run test:e2e`.
 
 ## Isolamento por tenant
 

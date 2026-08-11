@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+# Um push novo cancela o run anterior do mesmo ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    name: Typecheck, testes, migrations e build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # Postgres descartável: valida as migrations do zero a cada push, que é a
+    # única forma de saber que provisionar um ambiente novo funciona.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dipo_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/dipo_ci
+      SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/dipo_shadow
+      # Valores fictícios: o build e os testes só precisam que existam.
+      # Nenhuma chamada externa real acontece no CI.
+      AUTH_SECRET: ci-secret-nao-usar-em-producao
+      NEXTAUTH_SECRET: ci-secret-nao-usar-em-producao
+      NEXTAUTH_URL: http://localhost:3000
+      RESEND_API_KEY: re_ci_dummy
+      EMAIL_FROM: ci@example.com
+      LLM_API_KEY: ci-dummy
+      LLM_PROVIDER: openai
+      MERCADOPAGO_ACCESS_TOKEN: TEST-ci-dummy
+      NEXT_TELEMETRY_DISABLED: '1'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Gerar Prisma Client
+        run: npx prisma generate
+
+      # ── Checagens rápidas primeiro: falham em segundos ──────────────
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Testes (unit + integration)
+        run: npm test
+
+      # ── Migrations ─────────────────────────────────────────────────
+
+      - name: Criar shadow database
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -c 'CREATE DATABASE dipo_shadow;'
+
+      # Aplica todas as migrations em um banco vazio. Falha aqui significa que
+      # provisionar um ambiente novo está quebrado.
+      - name: Aplicar migrations em banco limpo
+        run: npx prisma migrate deploy
+
+      # Confirma que a sequência de migrations reproduz exatamente o
+      # schema.prisma. --exit-code retorna 2 quando há diferença.
+      - name: Verificar drift entre migrations e schema
+        run: |
+          npx prisma migrate diff \
+            --from-migrations prisma/migrations \
+            --to-schema-datamodel prisma/schema.prisma \
+            --shadow-database-url "$SHADOW_DATABASE_URL" \
+            --exit-code
+
+      # ── Build ──────────────────────────────────────────────────────
+
+      - name: Build de produção
+        run: npm run build
+
+      # Informativo: não bloqueia o merge. Serve para a vulnerabilidade nova
+      # aparecer no log em vez de só ser descoberta em auditoria manual.
+      - name: Auditoria de dependências (informativo)
+        if: always()
+        continue-on-error: true
+        run: npm audit --audit-level=high
