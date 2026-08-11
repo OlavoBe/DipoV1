@@ -117,6 +117,11 @@ app/api/test-login/route.ts      ← endpoint que cria a sessão no banco
 - **Nunca editar migrations já aplicadas** (`0_init` e as `20260413_*`) — o Prisma
   guarda o checksum e falha com "migration was modified after it was applied".
   Para corrigir algo, criar uma migration nova.
+- **O deploy NÃO aplica migrations.** `npm run build` é só `prisma generate &&
+  next build` (a Vercel não alcança o Railway no build). Ao adicionar um campo
+  ao schema, a migration precisa ser aplicada à mão **antes** de o código que
+  usa o campo chegar a produção — senão a rota grava numa coluna inexistente e
+  quebra. Confira com `npx prisma migrate status` antes e depois.
 - **Isolamento por tenant:** toda query que lê dados de um gabinete precisa filtrar
   por `tenantId`. Nunca usar `...(tenantId ? { tenantId } : {})` — isso remove o
   filtro em vez de barrar o acesso; retornar `403` quando não houver tenant.

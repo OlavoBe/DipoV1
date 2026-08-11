@@ -293,6 +293,31 @@ com o schema falha antes de chegar em produção.
 
 Novas migrations devem ser commitadas normalmente.
 
+### ⚠️ O deploy NÃO aplica migrations
+
+`npm run build` é `prisma generate && next build` — **sem `migrate deploy`**. Isso é
+proposital: a Vercel não alcança o banco do Railway durante o build.
+
+Consequência: **toda migration precisa ser aplicada à mão**, e antes do deploy do código
+que depende dela. Se o código subir primeiro, ele grava numa coluna que não existe e a
+rota quebra em produção.
+
+```bash
+npx prisma migrate deploy     # aplica as pendentes no banco do .env
+npx prisma migrate status     # confere antes e depois
+```
+
+### Histórico anterior ao versionamento
+
+O banco de produção tem 7 migrations registradas que **não existem no repositório**
+(`estrutura_multitenant`, `auth-nextauth`, `add_demo_uso`, `fase3-planos-mercadopago`,
+`onboarding_fields`, `add_is_admin`, `add_feedback_indicacao`). Foram criadas e aplicadas
+enquanto o `.gitignore` ainda escondia `prisma/migrations/`, e os arquivos se perderam.
+
+A baseline `0_init` reconstrói esse estado e está marcada como aplicada em produção via
+`prisma migrate resolve`. Um banco novo sobe corretamente pelas migrations do repositório;
+o banco atual segue funcionando. Não tente recriar as 7 antigas — o checksum não bateria.
+
 ## Integração contínua
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) roda em todo push para `master`,
