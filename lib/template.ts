@@ -34,7 +34,8 @@ export interface TemplateSettings {
     signatureSize?: number;
   };
   typography: {
-    fontFamily: string;
+    fontFamily: string;            // corpo do documento
+    fontFamilyCabecalho?: string;  // cabeçalho; ausente = usa fontFamily
     fontSize: number;
     lineHeight: number;
     paragraphSpacing: number;
@@ -99,7 +100,12 @@ export const DEFAULT_SETTINGS: TemplateSettings = {
     signatureSize: 100,
   },
   typography: {
+    // O documento de referência do gabinete usa Bookman Old Style no corpo e
+    // Times New Roman no cabeçalho. Os defaults mantêm Times nos dois para não
+    // alterar o visual dos PDFs já em uso — a mudança para Bookman no corpo
+    // deve ser feita por template, junto da calibração (ver docs/).
     fontFamily: "'Times New Roman', Times, serif",
+    fontFamilyCabecalho: "'Times New Roman', Times, serif",
     fontSize: 12,
     lineHeight: 1.5,
     paragraphSpacing: 12,

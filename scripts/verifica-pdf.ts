@@ -36,6 +36,21 @@ function contarPaginas(buf: Buffer): number {
   return m ? Math.max(...m.map((c) => parseInt(c.match(/\d+/)![0], 10))) : 1;
 }
 
+/**
+ * Lista as fontes efetivamente embarcadas no PDF (/BaseFont).
+ *
+ * É a única forma confiável de saber que não houve fallback silencioso: se o
+ * Chromium trocou a fonte, aparece aqui o nome da substituta e não o esperado.
+ */
+function fontesDoPdf(buf: Buffer): string[] {
+  const nomes = new Set<string>();
+  for (const m of buf.toString('latin1').matchAll(/\/BaseFont\s*\/([A-Za-z0-9+\-_,.]+)/g)) {
+    // remove o prefixo de subset (ex.: "ABCDEF+TeXGyreBonum-Regular")
+    nomes.add(m[1].replace(/^[A-Z]{6}\+/, ''));
+  }
+  return [...nomes].sort();
+}
+
 async function main() {
   const t0 = Date.now();
   const primeiro = await generatePdfDemo(TEXTO);
@@ -50,6 +65,7 @@ async function main() {
   console.log('PDF gerado com sucesso');
   console.log(`  tamanho .......... ${(primeiro.length / 1024).toFixed(0)} KB`);
   console.log(`  páginas .......... ${contarPaginas(primeiro)}`);
+  console.log(`  fontes no PDF .... ${fontesDoPdf(primeiro).join(', ') || '(nenhuma embarcada)'}`);
   console.log(`  margem no CSS .... ${margemEsperada}mm (topo/base), ${DEFAULT_SETTINGS.layout.marginLateral}mm (laterais)`);
   console.log(`  1ª geração ....... ${tCold}ms  (inclui launch do Chromium)`);
   console.log(`  2ª geração ....... ${tWarm}ms  (browser reaproveitado)`);

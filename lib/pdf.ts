@@ -1,5 +1,23 @@
 import { getTemplate, type TemplateSettings } from './template';
+import { buildFontFaceCss, STACK_CORPO, STACK_CABECALHO } from './fonts';
 import type { Browser } from 'playwright-core';
+
+/**
+ * Traduz a fonte configurada no template para uma pilha que prioriza a fonte
+ * embarcada equivalente.
+ *
+ * Os templates guardam nomes de fontes do Windows ("Times New Roman",
+ * "Bookman Old Style"), que não existem no Linux do ambiente serverless. Em vez
+ * de reescrever os templates, mapeamos para a substituta livre correspondente e
+ * mantemos o nome original como fallback — em dev local no Windows, a fonte
+ * original continua sendo usada.
+ */
+function resolverStack(fontFamily: string): string {
+  const f = fontFamily.toLowerCase();
+  if (f.includes('bookman')) return STACK_CORPO;
+  if (f.includes('times')) return STACK_CABECALHO;
+  return fontFamily; // configuração customizada: respeita como está
+}
 
 // ─────────────────────────────────────────────
 // Lança o browser correto por ambiente:
@@ -120,7 +138,8 @@ function buildHtml(textoFinal: string, t: TemplateSettings, fontSize: number, de
 
   const mLat = t.layout.marginLateral + 'mm';
   const mTb  = t.layout.marginTopBottom + 'mm';
-  const font = t.typography.fontFamily;
+  const font = resolverStack(t.typography.fontFamily);
+  const fontCabecalho = resolverStack(t.typography.fontFamilyCabecalho ?? t.typography.fontFamily);
   const txtColor = t.colors.text;
   const hdrColor = t.colors.header;
   const bgColor  = t.colors.background;
@@ -143,6 +162,7 @@ function buildHtml(textoFinal: string, t: TemplateSettings, fontSize: number, de
   <meta charset="UTF-8">
   <title>${demo ? 'Indicação Legislativa (Demo)' : 'Indicação Legislativa'}</title>
   <style>
+${buildFontFaceCss()}
     @page { size: A4; margin: ${mTb} ${mLat} ${mTb} ${mLat}; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -161,6 +181,7 @@ function buildHtml(textoFinal: string, t: TemplateSettings, fontSize: number, de
       border-bottom: ${divW}px solid ${divColor};
       margin-bottom: 14pt;
       color: ${hdrColor};
+      font-family: ${fontCabecalho};
     }
     .header-logo { flex-shrink: 0; display: flex; align-items: center; }
     .header-info { flex: 1; text-align: center; }
