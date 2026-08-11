@@ -124,6 +124,11 @@ app/api/test-login/route.ts      ← endpoint que cria a sessão no banco
 - **`DEFAULT_SETTINGS` (lib/template.ts) é neutro** — não colocar nome, gabinete ou
   e-mail de vereador ali. Esses dados vêm do tenant (perfil em `lib/vereadores.ts`
   ou onboarding).
+- **Margens do PDF vivem no `@page` do CSS, não no `page.pdf()`.** Medido no
+  Chromium do Playwright: quando `@page { margin }` está declarado, o `margin`
+  passado ao `page.pdf()` é **ignorado** — não somam. Trocar para
+  `@page { margin: 0 }` deixando a margem só no `page.pdf()` **zera as margens**
+  e cola o texto na borda. Ao mexer nisso, rode `npm run verify:pdf`.
 - **Não usar `git add -A`** — adicionar arquivos específicos para evitar
   commitar `.env.local` acidentalmente.
 

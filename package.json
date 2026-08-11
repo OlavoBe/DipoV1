@@ -16,7 +16,8 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "seed:beta": "npx tsx scripts/seed-beta.ts"
+    "seed:beta": "npx tsx scripts/seed-beta.ts",
+    "verify:pdf": "npx tsx scripts/verifica-pdf.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
@@ -30,7 +31,6 @@
     "mercadopago": "^2.12.0",
     "next": "^16.1.6",
     "next-auth": "^5.0.0-beta.30",
-    "playwright": "^1.43.1",
     "playwright-core": "^1.58.2",
     "react": "^18",
     "react-dom": "^18",
@@ -49,6 +49,7 @@
     "@vitest/coverage-v8": "^4.1.4",
     "autoprefixer": "^10",
     "next-test-api-route-handler": "^5.0.4",
+    "playwright": "^1.43.1",
     "postcss": "^8",
     "prisma": "^5.11.0",
     "tailwindcss": "^3",

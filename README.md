@@ -227,7 +227,11 @@ npm run test:watch     # Vitest em watch
 npm run test:coverage  # cobertura
 npm run test:e2e       # Playwright E2E
 npm run seed:beta      # popula tenants/usuários do beta
+npm run verify:pdf     # gera um PDF real e confere margens, páginas e tempo
 ```
+
+`verify:pdf` exige o Chromium do Playwright local (`npx playwright install chromium`)
+e não roda no CI. Use ao mexer em `lib/pdf.ts` ou nas margens do template.
 
 Scripts avulsos:
 

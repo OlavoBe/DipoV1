@@ -17,13 +17,45 @@ async function launchBrowser(): Promise<Browser> {
         'https://github.com/Sparticuz/chromium/releases/download/v143.0.0/chromium-v143.0.0-pack.tar',
     );
     return pw.launch({
-      args: chromium.args,
+      args: [...chromium.args, '--font-render-hinting=none'],
       executablePath,
       headless: true,
     });
   }
+  // Em dev/testes o playwright completo é devDependency; import dinâmico para
+  // que o bundle de produção nunca tente resolvê-lo.
   const { chromium: pw } = await import('playwright');
-  return pw.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+  return pw.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--font-render-hinting=none'],
+  });
+}
+
+// ─────────────────────────────────────────────
+// Browser reaproveitado entre invocações da mesma instância quente.
+// O cold start paga o launch uma vez; as gerações seguintes reusam.
+// Em erro, descarta a instância para não herdar um browser quebrado.
+// ─────────────────────────────────────────────
+
+let browserPromise: Promise<Browser> | null = null;
+
+async function getBrowser(): Promise<Browser> {
+  if (browserPromise) {
+    try {
+      const b = await browserPromise;
+      if (b.isConnected()) return b;
+    } catch {
+      // cai no relaunch abaixo
+    }
+  }
+  browserPromise = launchBrowser();
+  return browserPromise;
+}
+
+function descartarBrowser(): void {
+  const p = browserPromise;
+  browserPromise = null;
+  void p?.then((b) => b.close()).catch(() => {});
 }
 
 // ─────────────────────────────────────────────
@@ -183,22 +215,22 @@ function buildHtml(textoFinal: string, t: TemplateSettings, fontSize: number, de
 // ─────────────────────────────────────────────
 
 async function generatePdfInternal(textoFinal: string, t: ReturnType<typeof getTemplate> extends Promise<infer R> ? R : never, demo: boolean): Promise<Buffer> {
-  const browser = await launchBrowser();
+  const browser = await getBrowser();
+  const page = await browser.newPage();
 
   try {
-    const page = await browser.newPage();
-
     let pdfBuffer: Buffer | null = null;
     const baseFontSize = t.typography.fontSize || 12;
     const fontSizes = [baseFontSize, baseFontSize - 1, baseFontSize - 2, baseFontSize - 3]
       .filter((s) => s >= 9);
 
-    const mLat = t.layout.marginLateral + 'mm';
-    const mTb  = t.layout.marginTopBottom + 'mm';
-
     for (const fontSize of fontSizes) {
       const html = buildHtml(textoFinal, t, fontSize, demo);
       await page.setContent(html, { waitUntil: 'networkidle' });
+
+      // Garante que as fontes terminaram de carregar antes de medir e imprimir.
+      // Sem isso, o Chromium pode paginar com métricas da fonte de fallback.
+      await page.evaluate(() => document.fonts.ready);
 
       const pageCount = await page.evaluate(() => {
         const totalHeight = document.body.scrollHeight;
@@ -206,10 +238,12 @@ async function generatePdfInternal(textoFinal: string, t: ReturnType<typeof getT
         return Math.ceil(totalHeight / a4UsableHeightPx);
       });
 
+      // As margens vêm do `@page` do CSS (montado a partir do template).
+      // Medido: quando `@page { margin }` está declarado, o Chromium ignora o
+      // `margin` passado aqui — declarar nos dois lugares só confunde.
       const pdfBytes = await page.pdf({
         format: 'A4',
         printBackground: true,
-        margin: { top: mTb, right: mLat, bottom: mTb, left: mLat },
       });
 
       pdfBuffer = Buffer.from(pdfBytes);
@@ -219,8 +253,11 @@ async function generatePdfInternal(textoFinal: string, t: ReturnType<typeof getT
     }
 
     return pdfBuffer!;
+  } catch (err) {
+    descartarBrowser();
+    throw err;
   } finally {
-    await browser.close();
+    await page.close().catch(() => {});
   }
 }
 
