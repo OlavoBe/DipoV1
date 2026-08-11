@@ -139,12 +139,14 @@ controlado pela tabela `DemoUso`.
 
 Estamos expandindo o produto para **4 gabinetes beta**:
 
-| Vereador                        | Nome completo              |
-|---------------------------------|----------------------------|
-| Valdemir (Val Advogado)         | Valdemir (Val Advogado)    |
-| Ariani da Silva Paz             | Ariani da Silva Paz        |
-| Juninho Eroso                   | Edmar Lima dos Santos      |
-| Márcio do Pet Shop              | Márcio Nabor Tardelli      |
+| Slug             | Nome completo              | Apelido            |
+|------------------|----------------------------|--------------------|
+| `valdemir`       | Valdemir Batista Santana   | "Val Advogado"     |
+| `ariani_paz`     | Ariani da Silva Paz        | "Ariani"           |
+| `juninho_eroso`  | Edmar Lima dos Santos      | "Juninho Eroso"    |
+| `marcio_pet`     | Márcio Nabor Tardelli      | "Márcio do Pet Shop" |
+
+A fonte da verdade é `lib/vereadores.ts` — mantenha esta tabela em sincronia com ela.
 
 - O onboarding tem dropdown de seleção de vereador com esses 4 + "Outro vereador"
 - Few-shot examples e system prompts são filtrados por vereador quando há perfil dedicado
@@ -167,8 +169,8 @@ Cada vereador tem um estilo de texto distinto que deve ser respeitado na geraç�
 
 ## Regra de Modelo LLM
 
-- Geração de indicações **DEVE** usar `claude-sonnet-4-5-20250514` ou superior (NÃO Haiku)
+- Geração de indicações **DEVE** usar `claude-sonnet-4-5-20250929` ou superior (NÃO Haiku)
 - Extração pode usar Haiku (`claude-3-5-haiku-20241022`) para economizar custo
-- Variável `LLM_MODEL_GENERATE` deve ser `claude-sonnet-4-5-20250514` em produção
+- Variável `LLM_MODEL_GENERATE` deve ser `claude-sonnet-4-5-20250929` em produção
 - Variável `LLM_MODEL_EXTRACT` pode ser `claude-3-5-haiku-20241022` para extração barata
 - Para OpenAI: `LLM_MODEL_GENERATE=gpt-4o`, `LLM_MODEL_EXTRACT=gpt-4o-mini`

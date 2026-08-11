@@ -4,11 +4,18 @@ node_modules/
 # Next.js build output
 .next/
 out/
+tsconfig.tsbuildinfo
+
+# Testes
+test-results/
+playwright-report/
+coverage/
 
 # Database
 *.db
 *.db-journal
-prisma/migrations/
+# NÃO ignorar prisma/migrations/ — as migrations precisam ser versionadas
+# para que `prisma migrate deploy` funcione no Railway/Vercel.
 
 # Environment
 .env

@@ -33,7 +33,7 @@ function getGenerateConfig(): LLMConfig {
   const provider = (process.env.LLM_PROVIDER ?? 'anthropic') as 'anthropic' | 'openai';
   const model =
     process.env.LLM_MODEL_GENERATE ??
-    (provider === 'anthropic' ? 'claude-sonnet-4-5-20250514' : 'gpt-4o');
+    (provider === 'anthropic' ? 'claude-sonnet-4-5-20250929' : 'gpt-4o');
 
   return { apiKey, model, provider, maxTokens: 2048, timeoutMs: 45_000 };
 }
