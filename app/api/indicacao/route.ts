@@ -84,13 +84,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     // ── Persistência ──────────────────────────────────────────
-    const { textoFinal, extracted } = result;
+    const { textoFinal, ementa, extracted } = result;
 
     const record = await prisma.indicacao.create({
       data: {
         inputRaw:      texto.trim(),
         extractedJson: JSON.stringify(extracted),
         textoFinal,
+        ementa:        ementa || null,
         tipoServico:   extracted.tipos_servico?.[0] ?? extracted.categoria ?? 'outros',
         bairro:        extracted.bairro     || '',
         logradouro:    extracted.logradouro || '',
@@ -108,6 +109,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({
       status: 'success',
       texto_final: textoFinal,
+      ementa,
       record_id: record.id,
       extracted,
     });

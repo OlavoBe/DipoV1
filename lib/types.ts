@@ -80,6 +80,8 @@ export interface IndicacaoRequest {
 export interface IndicacaoResponse {
   status: 'success' | 'incomplete' | 'error';
   texto_final?: string;
+  /** Campo "Assunto" do protocolo. Vazio quando a geração da ementa falhou. */
+  ementa?: string;
   record_id?: string;
   perguntas_faltantes?: string[];
   extracted?: ExtractedData;

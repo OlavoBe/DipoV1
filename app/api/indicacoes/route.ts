@@ -93,6 +93,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
           inputRaw: true,
           extractedJson: true,
           textoFinal: true,
+          ementa: true,
           tipoServico: true,
           logradouro: true,
           bairro: true,

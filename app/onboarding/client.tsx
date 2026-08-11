@@ -454,7 +454,7 @@ export default function OnboardingClient({ prefill }: Props) {
                   {[
                     { num: '1', text: 'Descreva o pedido em linguagem natural — como você recebeu do morador.' },
                     { num: '2', text: 'O Dipo gera o texto formal da indicação automaticamente.' },
-                    { num: '3', text: 'Copie o texto e cole no modelo do seu gabinete. Adicione o nome do vereador e a assinatura.' },
+                    { num: '3', text: 'Baixe o PDF ou o Word já no padrão do seu gabinete, pronto para imprimir.' },
                   ].map(({ num, text }) => (
                     <div key={num} className="flex items-start gap-3">
                       <div className="h-6 w-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">

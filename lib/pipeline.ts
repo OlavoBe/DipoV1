@@ -14,6 +14,7 @@ import { extractData } from './extract';
 import { validateData, camposEssenciaisPreenchidos, CATEGORIAS_COM_LOCALIZACAO } from './validator';
 import { normalizeData } from './normalizer';
 import { generateTexto } from './generate';
+import { gerarEmenta } from './ementa';
 import { enrichLocation } from './geocoder';
 import type { ExtractedData } from './types';
 
@@ -22,7 +23,7 @@ import type { ExtractedData } from './types';
 // ─────────────────────────────────────────────
 
 export type PipelineResult =
-  | { status: 'success';    textoFinal: string; extracted: ExtractedData }
+  | { status: 'success';    textoFinal: string; ementa: string; extracted: ExtractedData }
   | { status: 'incomplete'; perguntas: string[]; extracted: ExtractedData }
   | { status: 'error';      message: string };
 
@@ -80,9 +81,14 @@ export async function indicacaoPipeline(
     }
 
     // ── 5. Geração do texto final ───────────────────────────────
-    const textoFinal = await generateTexto(enriched, templateId, vereadorSlug, tenantId);
+    // Texto e ementa são independentes: rodam em paralelo, então a ementa não
+    // soma latência. `gerarEmenta` nunca lança — devolve '' se falhar.
+    const [textoFinal, ementa] = await Promise.all([
+      generateTexto(enriched, templateId, vereadorSlug, tenantId),
+      gerarEmenta(enriched),
+    ]);
 
-    return { status: 'success', textoFinal, extracted: enriched };
+    return { status: 'success', textoFinal, ementa, extracted: enriched };
 
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erro interno no pipeline';

@@ -29,7 +29,7 @@ import type { ExtractedData } from '@/lib/types';
 type ResultState =
   | { kind: 'empty' }
   | { kind: 'loading'; step: number }
-  | { kind: 'success'; textoFinal: string; recordId: string }
+  | { kind: 'success'; textoFinal: string; ementa?: string; recordId: string }
   | { kind: 'error'; message: string }
   | { kind: 'limite'; motivo: string };
 
@@ -239,18 +239,42 @@ function FeedbackBar({ recordId }: { recordId: string }) {
 // CopyButton
 // ─────────────────────────────────────────────
 
-function CopyButton({ text }: { text: string }) {
+interface CopyButtonProps {
+  text: string;
+  /** Rótulo do botão. Também vira a mensagem do toast ("<label> copiado"). */
+  label?: string;
+  /** Versão discreta, para usar dentro de um bloco em vez da barra de ações. */
+  compact?: boolean;
+}
+
+function CopyButton({ text, label = 'Copiar texto', compact = false }: CopyButtonProps) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
-      toast.success('Texto copiado!');
+      toast.success(`${label.replace(/^Copiar\s+/i, '')} copiado!`.replace(/^\w/, (c) => c.toUpperCase()));
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error('Não foi possível copiar. Selecione e copie manualmente.');
     }
+  }
+
+  if (compact) {
+    return (
+      <button
+        onClick={handleCopy}
+        className={cn(
+          'flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium shrink-0 transition-colors',
+          copied
+            ? 'text-green-700 bg-green-100'
+            : 'text-amber-800 hover:bg-amber-100',
+        )}
+      >
+        {copied ? <><Check className="h-3 w-3" /> Copiado</> : <><Copy className="h-3 w-3" /> {label}</>}
+      </button>
+    );
   }
 
   return (
@@ -264,7 +288,7 @@ function CopyButton({ text }: { text: string }) {
       {copied ? (
         <><Check className="h-4 w-4" /> Copiado!</>
       ) : (
-        <><Copy className="h-4 w-4" /> Copiar texto</>
+        <><Copy className="h-4 w-4" /> {label}</>
       )}
     </button>
   );
@@ -394,9 +418,23 @@ function ResultCard({ state, onRetry, onRegenerate, onAjuste, loadingAjuste }: R
         <div className="px-4 py-3 border-b border-blue-100 bg-blue-50 flex items-start gap-2.5">
           <Info className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
           <p className="text-xs text-blue-700 leading-relaxed">
-            <span className="font-semibold">Como usar:</span> Copie o texto abaixo e cole no modelo do seu gabinete. Adicione o nome do vereador, o número da indicação e a assinatura.
+            <span className="font-semibold">Como usar:</span> Baixe o PDF ou o Word já no padrão do seu gabinete.
+            Se preferir, copie o texto para ajustar antes de imprimir.
           </p>
         </div>
+
+        {/* Ementa — o campo "Assunto" do protocolo */}
+        {state.ementa && (
+          <div className="px-4 py-3 border-b border-gray-100 bg-amber-50/60">
+            <div className="flex items-center justify-between gap-3 mb-1.5">
+              <span className="text-[11px] font-semibold text-amber-800 uppercase tracking-wide">
+                Ementa — campo &ldquo;Assunto&rdquo; do protocolo
+              </span>
+              <CopyButton text={state.ementa} label="Copiar ementa" compact />
+            </div>
+            <p className="text-xs text-gray-700 leading-relaxed">{state.ementa}</p>
+          </div>
+        )}
 
         {/* Texto scrollável */}
         <div className="overflow-y-auto max-h-[400px] p-5 bg-gray-50">
@@ -572,6 +610,7 @@ export default function GerarPageClient({
           setResult({
             kind: 'success',
             textoFinal: data.texto_final,
+            ementa: data.ementa,
             recordId: data.record_id,
           });
           setLocalUsage((u) => u + 1);

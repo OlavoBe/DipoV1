@@ -67,6 +67,9 @@ model Indicacao {
   logradouro    String
   numero        String?
   cep           String?
+  // Ementa: o campo "Assunto" do protocolo, no padrão da Câmara.
+  // Opcional — indicações geradas antes desta funcionalidade não têm.
+  ementa        String?
   // Feedback do usuário: 1 = positivo, -1 = negativo, null = sem resposta
   feedback      Int?
   feedbackEm    DateTime?
