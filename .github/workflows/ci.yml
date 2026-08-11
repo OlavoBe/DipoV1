@@ -6,10 +6,15 @@ on:
   pull_request:
   workflow_dispatch:
 
-# Um push novo cancela o run anterior do mesmo ref.
+# Em pull request, um push novo cancela o run anterior — não faz sentido gastar
+# runner com uma versão que já foi substituída.
+#
+# Em master, NÃO cancela: cada commit precisa do seu próprio resultado. Com o
+# cancelamento ligado, uma sequência rápida de pushes deixava commits marcados
+# como "cancelled" — sem verificação e sem um ponto bom para bissectar depois.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   verificar:
