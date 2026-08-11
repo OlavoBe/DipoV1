@@ -116,6 +116,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         : null,
       createdAt: r.createdAt.toISOString(),
       textoFinal: r.textoFinal,
+      // Nulo nas indicações geradas antes da funcionalidade de ementa.
+      ementa: r.ementa ?? null,
       status: 'gerada' as const,
       feedback: r.feedback ?? null,
     }));

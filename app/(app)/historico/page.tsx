@@ -28,6 +28,8 @@ interface IndicacaoItem {
   enderecoCompleto: string | null;
   createdAt: string;
   textoFinal: string;
+  /** Campo "Assunto" do protocolo. Nulo nas indicações anteriores à funcionalidade. */
+  ementa: string | null;
   status: 'gerada' | 'incompleta';
   feedback: number | null;
 }
@@ -178,6 +180,7 @@ function FeedbackButtons({ id, initialFeedback }: { id: string; initialFeedback:
 
 function IndicacaoCard({ item }: { item: IndicacaoItem }) {
   const [copied, setCopied] = useState(false);
+  const [copiedEmenta, setCopiedEmenta] = useState(false);
 
   async function handleCopy() {
     try {
@@ -187,6 +190,18 @@ function IndicacaoCard({ item }: { item: IndicacaoItem }) {
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error('Não foi possível copiar o texto.');
+    }
+  }
+
+  async function handleCopyEmenta() {
+    if (!item.ementa) return;
+    try {
+      await navigator.clipboard.writeText(item.ementa);
+      setCopiedEmenta(true);
+      toast.success('Ementa copiada para a área de transferência.');
+      setTimeout(() => setCopiedEmenta(false), 2000);
+    } catch {
+      toast.error('Não foi possível copiar a ementa.');
     }
   }
 
@@ -224,6 +239,19 @@ function IndicacaoCard({ item }: { item: IndicacaoItem }) {
         {/* Ações */}
         <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
           <FeedbackButtons id={item.id} initialFeedback={item.feedback} />
+          {item.ementa && (
+            <button
+              onClick={handleCopyEmenta}
+              title={item.ementa}
+              className="btn-secondary text-xs px-3 py-1.5 gap-1.5 min-w-[110px] justify-center"
+            >
+              {copiedEmenta ? (
+                <><Check className="h-3.5 w-3.5 text-green-500" /> Copiada</>
+              ) : (
+                <><Copy className="h-3.5 w-3.5" /> Copiar ementa</>
+              )}
+            </button>
+          )}
           <button
             onClick={handleCopy}
             className="btn-secondary text-xs px-3 py-1.5 gap-1.5 min-w-[90px] justify-center"
