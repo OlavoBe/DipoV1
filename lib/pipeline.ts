@@ -37,12 +37,14 @@ export type PipelineResult =
  * @param complementos  Respostas às perguntas faltantes (segunda chamada)
  * @param templateId    ID do template de formatação (opcional)
  * @param vereadorSlug  Slug do vereador para personalização do prompt (opcional)
+ * @param tenantId      Tenant dono da geração — isola o template usado no prompt
  */
 export async function indicacaoPipeline(
   texto: string,
   complementos?: Record<string, string>,
   templateId?: string,
   vereadorSlug?: string,
+  tenantId?: string,
 ): Promise<PipelineResult> {
   try {
     // ── 1. Extração ─────────────────────────────────────────────
@@ -78,7 +80,7 @@ export async function indicacaoPipeline(
     }
 
     // ── 5. Geração do texto final ───────────────────────────────
-    const textoFinal = await generateTexto(enriched, templateId, vereadorSlug);
+    const textoFinal = await generateTexto(enriched, templateId, vereadorSlug, tenantId);
 
     return { status: 'success', textoFinal, extracted: enriched };
 

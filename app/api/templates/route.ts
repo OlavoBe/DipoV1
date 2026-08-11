@@ -9,10 +9,13 @@ export async function GET() {
     if (!session?.user) {
       return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
     }
-    const tenantId = session.user.tenantId ?? undefined;
+    const tenantId = session.user.tenantId;
+    if (!tenantId) {
+      return NextResponse.json({ templates: [] });
+    }
 
     const templates = await prisma.template.findMany({
-      where: { ...(tenantId ? { tenantId } : {}) },
+      where: { tenantId },
       orderBy: { updatedAt: 'desc' },
       select: { id: true, name: true, isActive: true, createdAt: true, updatedAt: true },
     });

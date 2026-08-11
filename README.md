@@ -58,10 +58,8 @@ npx prisma generate
 npx prisma migrate deploy
 ```
 
-> ⚠️ O histórico de migrations em `prisma/migrations/` está **incompleto** — só existem
-> as migrations incrementais do beta v2. Um banco vazio não é criado corretamente por
-> `migrate deploy`. Para subir um ambiente do zero use `npx prisma db push`.
-> Ver "Problemas conhecidos".
+Funciona tanto para um banco vazio quanto para um já existente — ver
+"Migrations" abaixo.
 
 ### 5. Rodar
 
@@ -259,21 +257,45 @@ preencha o `tenantId` do `User`.
 
 ---
 
-## Problemas conhecidos
+## Migrations
 
-- **Migrations incompletas.** `.gitignore` ignorava `prisma/migrations/`, então só as
-  migrations adicionadas manualmente (`--force`) estão versionadas. Não existe migration
-  inicial nem para `DemoUso`, `Indicacao.feedback`, `User.isAdmin`/`onboardingComplete`
-  e os campos de onboarding do `Tenant`. Um banco novo precisa de `prisma db push`.
-  A regra do `.gitignore` já foi removida — novas migrations devem ser commitadas.
-- **Template não é filtrado por tenant na exportação.** `lib/pdf.ts`, `lib/docx.ts` e
-  `lib/generate.ts` chamam `getTemplate(templateId)` sem passar `tenantId`, então o
-  template ativo é buscado sem filtro de tenant.
-- **Download cross-tenant.** Em `/api/pdf/[id]` e `/api/docx/[id]`, um usuário sem tenant
-  vinculado consegue baixar qualquer indicação por ID — o filtro de tenant só é aplicado
-  quando `session.user.tenantId` existe.
-- **`saveActiveTemplate` com tenant vazio.** Ao salvar um template sem `tenantId`, grava
-  `tenantId: ''`, o que viola a foreign key no PostgreSQL.
+O `.gitignore` ignorava `prisma/migrations/`, então o histórico nasceu incompleto: só as
+três migrations `20260413_*` chegaram ao repositório, e os campos aplicados via `db push`
+nunca tiveram migration.
+
+A migration `0_init` reconstrói esse estado inicial. Ela é **integralmente idempotente**,
+o que dispensa `migrate resolve` e faz `migrate deploy` funcionar nos dois cenários:
+
+| Cenário | O que acontece |
+|---|---|
+| Banco novo | `0_init` cria o schema base; as `20260413_*` completam com `BETA`, `UsageLog` e `vereadorSlug` |
+| Banco existente (Railway) | `0_init` é um no-op; o Prisma apenas a registra em `_prisma_migrations` |
+
+Por isso `0_init` **não** inclui o que as três migrations posteriores fazem — e elas
+**não devem ser editadas**, porque já foram aplicadas em produção e qualquer alteração
+quebra o checksum do Prisma.
+
+> A sequência foi conferida por revisão do SQL, mas ainda não foi executada contra um
+> Postgres do zero. Antes de confiar nela para provisionar um ambiente novo, rode
+> `npx prisma migrate deploy` em um banco descartável e compare com
+> `npx prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url <url-descartavel>`.
+
+Novas migrations devem ser commitadas normalmente.
+
+## Isolamento por tenant
+
+Pontos que exigem atenção ao mexer em template ou exportação:
+
+- `getTemplate(templateId, tenantId)` **só consulta o banco com `tenantId`**. Sem ele
+  (demo pública) devolve os defaults neutros — nunca o template de outro gabinete.
+- `DEFAULT_SETTINGS` é neutro de propósito. A identificação do gabinete
+  (`subtitle`, `gabinete`, `email`, `vereador.nome`) vem do tenant: do perfil em
+  `lib/vereadores.ts` quando há `vereadorSlug` dedicado, ou dos dados do onboarding.
+- `saveActiveTemplate` exige `tenantId` e lança erro sem ele.
+- As rotas que leem dados do tenant retornam `403` quando o usuário não tem tenant
+  vinculado, em vez de consultar sem filtro.
+
+`tests/unit/template.test.ts` trava essas regras.
 
 ---
 

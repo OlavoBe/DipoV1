@@ -14,13 +14,18 @@ export async function GET(
     if (!session?.user) {
       return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
     }
-    const tenantId = session.user.tenantId ?? undefined;
+    // Sem tenant vinculado não há o que baixar. Antes o filtro de tenant era
+    // omitido nesse caso, o que permitia baixar qualquer indicação por ID.
+    const tenantId = session.user.tenantId;
+    if (!tenantId) {
+      return NextResponse.json({ error: 'Usuário sem tenant vinculado.' }, { status: 403 });
+    }
 
     const { id } = await params;
     const templateId = req.nextUrl.searchParams.get('templateId') ?? undefined;
 
-    const record = await prisma.indicacao.findUnique({
-      where: { id, ...(tenantId ? { tenantId } : {}) },
+    const record = await prisma.indicacao.findFirst({
+      where: { id, tenantId },
       select: { textoFinal: true, tipoServico: true, bairro: true },
     });
 
@@ -28,7 +33,7 @@ export async function GET(
       return NextResponse.json({ error: 'Indicação não encontrada' }, { status: 404 });
     }
 
-    const pdfBuffer = await generatePdf(record.textoFinal, templateId);
+    const pdfBuffer = await generatePdf(record.textoFinal, templateId, tenantId);
     const filename = buildFilename(record.tipoServico, record.bairro);
 
     return new NextResponse(new Uint8Array(pdfBuffer), {

@@ -69,7 +69,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       : texto.trim();
 
     // ── Pipeline: Extract → Validate → Normalize → Generate ──
-    const result = await indicacaoPipeline(textoParaPipeline, complementos, templateId, vereadorSlug);
+    const result = await indicacaoPipeline(textoParaPipeline, complementos, templateId, vereadorSlug, tenantId);
 
     if (result.status === 'error') {
       return NextResponse.json({ status: 'error', error: result.message }, { status: 500 });

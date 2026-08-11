@@ -224,11 +224,16 @@ async function generatePdfInternal(textoFinal: string, t: ReturnType<typeof getT
   }
 }
 
-export async function generatePdf(textoFinal: string, templateId?: string): Promise<Buffer> {
-  const t = await getTemplate(templateId);
+export async function generatePdf(
+  textoFinal: string,
+  templateId?: string,
+  tenantId?: string,
+): Promise<Buffer> {
+  const t = await getTemplate(templateId, tenantId);
   return generatePdfInternal(textoFinal, t, false);
 }
 
+/** Demo pública: sem tenant, usa os defaults neutros. */
 export async function generatePdfDemo(textoFinal: string): Promise<Buffer> {
   const t = await getTemplate();
   return generatePdfInternal(textoFinal, t, true);

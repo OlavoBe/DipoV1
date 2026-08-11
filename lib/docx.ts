@@ -197,8 +197,12 @@ function lineToParagraph(line: string, FONT: string, BODY_HP: number, justified:
 // Exportação principal
 // ─────────────────────────────────────────────
 
-export async function generateDocx(textoFinal: string, templateId?: string): Promise<Buffer> {
-  const t = await getTemplate(templateId);
+export async function generateDocx(
+  textoFinal: string,
+  templateId?: string,
+  tenantId?: string,
+): Promise<Buffer> {
+  const t = await getTemplate(templateId, tenantId);
 
   const FONT    = t.typography.fontFamily.split(',')[0].replace(/'/g, '').trim();
   const BODY_HP = t.typography.fontSize * 2;

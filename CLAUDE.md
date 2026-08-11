@@ -114,6 +114,16 @@ app/api/test-login/route.ts      ← endpoint que cria a sessão no banco
 - **Migrations:** usar `prisma migrate deploy` (não `migrate dev`) pois o
   ambiente pode ser não-interativo. Criar o arquivo SQL da migration manualmente
   em `prisma/migrations/<timestamp>_<nome>/migration.sql` quando necessário.
+- **Nunca editar migrations já aplicadas** (`0_init` e as `20260413_*`) — o Prisma
+  guarda o checksum e falha com "migration was modified after it was applied".
+  Para corrigir algo, criar uma migration nova.
+- **Isolamento por tenant:** toda query que lê dados de um gabinete precisa filtrar
+  por `tenantId`. Nunca usar `...(tenantId ? { tenantId } : {})` — isso remove o
+  filtro em vez de barrar o acesso; retornar `403` quando não houver tenant.
+  `getTemplate()` sem `tenantId` devolve defaults neutros e não toca o banco.
+- **`DEFAULT_SETTINGS` (lib/template.ts) é neutro** — não colocar nome, gabinete ou
+  e-mail de vereador ali. Esses dados vêm do tenant (perfil em `lib/vereadores.ts`
+  ou onboarding).
 - **Não usar `git add -A`** — adicionar arquivos específicos para evitar
   commitar `.env.local` acidentalmente.
 

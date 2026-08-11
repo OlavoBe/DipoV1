@@ -1,4 +1,5 @@
 import { prisma } from './db';
+import { getVereadorPerfil } from './vereadores';
 
 // ─────────────────────────────────────────────
 // Tipos do template
@@ -61,17 +62,25 @@ export interface TemplateSettings {
 // Defaults
 // ─────────────────────────────────────────────
 
+/**
+ * Defaults NEUTROS — não contêm dados de nenhum gabinete específico.
+ *
+ * Os campos de identificação (subtitle, gabinete, email, vereador.nome) ficam
+ * vazios de propósito: são preenchidos por `buildTenantDefaults()` a partir do
+ * tenant. Antes havia os dados de um vereador hardcoded aqui, que vazavam para
+ * qualquer gabinete sem template salvo.
+ */
 export const DEFAULT_SETTINGS: TemplateSettings = {
   version: 1,
   institution: {
     name: 'Câmara Municipal de Guarujá',
     title: 'ESTADO DE SÃO PAULO',
-    subtitle: 'Márcio Nabor Tardelli',
-    gabinete: 'Gabinete do Vereador MÁRCIO DO PET SHOP',
-    email: 'Marcio@camaraguaruja.sp.gov.br',
+    subtitle: '',
+    gabinete: '',
+    email: '',
   },
   vereador: {
-    nome: 'MÁRCIO NABOR TARDELLI',
+    nome: '',
     cargo: 'Vereador',
     salaLocal: 'Sala Alberto Santos Dumont',
     nomePrefeito: 'Farid Said Madi',
@@ -117,70 +126,131 @@ export const DEFAULT_SETTINGS: TemplateSettings = {
 // Acesso ao banco
 // ─────────────────────────────────────────────
 
-/** Carrega o template ativo. Retorna defaults se nenhum for encontrado. */
+/**
+ * Monta os defaults do tenant: parte dos defaults neutros e preenche a
+ * identificação do gabinete a partir do perfil do vereador (quando é um dos
+ * gabinetes com perfil dedicado) ou dos dados do onboarding.
+ *
+ * Sem `tenantId` — o caso da demo pública — devolve os defaults neutros, sem
+ * consultar o banco. Nunca cai no template de outro tenant.
+ */
+async function buildTenantDefaults(tenantId?: string): Promise<TemplateSettings> {
+  const base: TemplateSettings = structuredClone(DEFAULT_SETTINGS);
+  if (!tenantId) return base;
+
+  try {
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { nomeVereador: true, municipio: true, vereadorSlug: true },
+    });
+    if (!tenant) return base;
+
+    const perfil = tenant.vereadorSlug && tenant.vereadorSlug !== 'outro'
+      ? getVereadorPerfil(tenant.vereadorSlug)
+      : null;
+
+    const nomeVereador = perfil?.nomeCompleto || tenant.nomeVereador || '';
+
+    if (tenant.municipio) {
+      base.institution.name = `Câmara Municipal de ${tenant.municipio}`;
+    }
+    base.institution.subtitle = nomeVereador;
+    base.institution.gabinete = perfil?.gabinete
+      || (nomeVereador ? `Gabinete do Vereador ${nomeVereador.toUpperCase()}` : '');
+    base.institution.email = perfil?.email || '';
+
+    base.vereador.nome         = nomeVereador.toUpperCase();
+    base.vereador.salaLocal    = perfil?.salaLocal    || base.vereador.salaLocal;
+    base.vereador.nomePrefeito = perfil?.nomePrefeito || base.vereador.nomePrefeito;
+  } catch (e) {
+    console.warn('[template] Falha ao montar defaults do tenant:', e);
+  }
+
+  return base;
+}
+
+/** Aplica o JSON salvo sobre os defaults do tenant. */
+function mergeSettings(defaults: TemplateSettings, settingsJson: string): TemplateSettings {
+  const parsed = JSON.parse(settingsJson) as Partial<TemplateSettings>;
+  return deepMerge(
+    defaults as unknown as Record<string, unknown>,
+    parsed as unknown as Record<string, unknown>,
+  ) as unknown as TemplateSettings;
+}
+
+/**
+ * Carrega o template ativo DO TENANT. Retorna os defaults do tenant se não
+ * houver nenhum salvo.
+ *
+ * `tenantId` é obrigatório para tocar o banco: sem ele a busca voltaria a
+ * pegar o template ativo de qualquer gabinete.
+ */
 export async function getActiveTemplate(tenantId?: string): Promise<TemplateSettings> {
+  const defaults = await buildTenantDefaults(tenantId);
+  if (!tenantId) return defaults;
+
   try {
     const record = await prisma.template.findFirst({
-      where: { isActive: true, ...(tenantId ? { tenantId } : {}) },
+      where: { tenantId, isActive: true },
       orderBy: { updatedAt: 'desc' },
     });
-
-    if (record) {
-      const parsed = JSON.parse(record.settings) as Partial<TemplateSettings>;
-      return deepMerge(
-        DEFAULT_SETTINGS as unknown as Record<string, unknown>,
-        parsed as unknown as Record<string, unknown>,
-      ) as unknown as TemplateSettings;
-    }
+    if (record) return mergeSettings(defaults, record.settings);
   } catch (e) {
     console.warn('[template] Falha ao carregar do DB, usando defaults:', e);
   }
-  return { ...DEFAULT_SETTINGS };
+  return defaults;
 }
 
-/** Carrega um template pelo ID. Retorna defaults se não encontrado. */
+/**
+ * Carrega um template pelo ID, restrito ao tenant.
+ * Um ID de outro tenant não é encontrado — cai nos defaults do tenant atual.
+ */
 export async function getTemplateById(id: string, tenantId?: string): Promise<TemplateSettings> {
+  const defaults = await buildTenantDefaults(tenantId);
+  if (!tenantId) return defaults;
+
   try {
-    const record = await prisma.template.findUnique({
-      where: { id, ...(tenantId ? { tenantId } : {}) },
-    });
-    if (record) {
-      const parsed = JSON.parse(record.settings) as Partial<TemplateSettings>;
-      return deepMerge(
-        DEFAULT_SETTINGS as unknown as Record<string, unknown>,
-        parsed as unknown as Record<string, unknown>,
-      ) as unknown as TemplateSettings;
-    }
+    const record = await prisma.template.findFirst({ where: { id, tenantId } });
+    if (record) return mergeSettings(defaults, record.settings);
   } catch (e) {
     console.warn('[template] Falha ao carregar template por ID:', e);
   }
-  return { ...DEFAULT_SETTINGS };
+  return defaults;
 }
 
-/** Retorna o template pelo ID (se fornecido) ou o template ativo. */
+/** Retorna o template pelo ID (se fornecido) ou o template ativo do tenant. */
 export async function getTemplate(templateId?: string, tenantId?: string): Promise<TemplateSettings> {
   if (templateId) return getTemplateById(templateId, tenantId);
   return getActiveTemplate(tenantId);
 }
 
-/** Salva/atualiza o template ativo (ou cria um novo com o nome dado). */
+/**
+ * Salva/atualiza o template ativo do tenant (ou cria um novo com o nome dado).
+ *
+ * `tenantId` é obrigatório: antes, na ausência dele, gravava `tenantId: ''`,
+ * que viola a foreign key de Template.tenantId no Postgres.
+ */
 export async function saveActiveTemplate(
   settings: Partial<TemplateSettings>,
   name?: string,
   createNew?: boolean,
   tenantId?: string,
 ): Promise<string> {
+  if (!tenantId) {
+    throw new Error('saveActiveTemplate: tenantId é obrigatório para salvar um template.');
+  }
+
   const json = JSON.stringify(settings);
 
   if (createNew) {
     const record = await prisma.template.create({
-      data: { settings: json, name: name || 'Novo Template', isActive: false, tenantId: tenantId ?? '' },
+      data: { settings: json, name: name || 'Novo Template', isActive: false, tenantId },
     });
     return record.id;
   }
 
   const existing = await prisma.template.findFirst({
-    where: { isActive: true, ...(tenantId ? { tenantId } : {}) },
+    where: { tenantId, isActive: true },
     orderBy: { updatedAt: 'desc' },
   });
 
@@ -193,7 +263,7 @@ export async function saveActiveTemplate(
   }
 
   const record = await prisma.template.create({
-    data: { settings: json, name: name || 'Template Padrão', tenantId: tenantId ?? '' },
+    data: { settings: json, name: name || 'Template Padrão', tenantId },
   });
   return record.id;
 }

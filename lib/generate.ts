@@ -152,8 +152,9 @@ async function buildSystemPrompt(
   categoria?: IndicacaoCategoria,
   tiposServico: string[] = [],
   vereadorSlug?: string,
+  tenantId?: string,
 ): Promise<string> {
-  const t = await getTemplate(templateId);
+  const t = await getTemplate(templateId, tenantId);
   const prefeito    = t.vereador.nomePrefeito || 'Farid Said Madi';
   const sala        = t.vereador.salaLocal || 'Sala Alberto Santos Dumont';
   const instituicao = t.institution.name || 'Câmara Municipal de Guarujá';
@@ -387,8 +388,13 @@ function removeEmojis(text: string): string {
 // Geração principal
 // ─────────────────────────────────────────────
 
-export async function generateTexto(data: ExtractedData, templateId?: string, vereadorSlug?: string): Promise<string> {
-  const systemPrompt = await buildSystemPrompt(templateId, data.categoria, data.tipos_servico ?? [], vereadorSlug);
+export async function generateTexto(
+  data: ExtractedData,
+  templateId?: string,
+  vereadorSlug?: string,
+  tenantId?: string,
+): Promise<string> {
+  const systemPrompt = await buildSystemPrompt(templateId, data.categoria, data.tipos_servico ?? [], vereadorSlug, tenantId);
   const userMsg      = buildUserPrompt(data);
   // temperature: 0.2 — texto formal com baixa variação, mas linguagem natural
   const raw          = await callLLMGenerate(systemPrompt, userMsg, 0.2);

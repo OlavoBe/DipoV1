@@ -10,22 +10,25 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     if (!session?.user) {
       return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
     }
-    const tenantId = session.user.tenantId ?? undefined;
+    const tenantId = session.user.tenantId;
+    if (!tenantId) {
+      return NextResponse.json({ error: 'Usuário sem tenant vinculado.' }, { status: 403 });
+    }
 
     const id = req.nextUrl.searchParams.get('id');
     let name = 'Template Padrão';
     let settings;
     if (id) {
       settings = await getTemplateById(id, tenantId);
-      const record = await prisma.template.findUnique({
-        where: { id, ...(tenantId ? { tenantId } : {}) },
+      const record = await prisma.template.findFirst({
+        where: { id, tenantId },
         select: { name: true },
       });
       if (record) name = record.name;
     } else {
       settings = await getActiveTemplate(tenantId);
       const record = await prisma.template.findFirst({
-        where: { isActive: true, ...(tenantId ? { tenantId } : {}) },
+        where: { tenantId, isActive: true },
         select: { name: true },
       });
       if (record) name = record.name;
@@ -47,7 +50,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     if (!session?.user) {
       return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
     }
-    const tenantId = session.user.tenantId ?? undefined;
+    const tenantId = session.user.tenantId;
+    if (!tenantId) {
+      return NextResponse.json({ error: 'Usuário sem tenant vinculado.' }, { status: 403 });
+    }
 
     const body = await req.json();
     const name = body._name as string | undefined;
