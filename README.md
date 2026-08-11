@@ -125,6 +125,11 @@ Acesse **http://localhost:3000**.
 │   └── admin/admin-shell.tsx    # Layout do admin
 ├── lib/
 │   ├── pipeline.ts              # Orquestra extract → validate → normalize → geo → generate
+│   ├── ementa.ts                # Ementa ("Assunto" do protocolo), no padrão da Câmara
+│   ├── doc-types.ts             # IndicacaoDoc — estrutura semântica do documento
+│   ├── doc-parser.ts            # Texto plano → IndicacaoDoc
+│   ├── doc-serializer.ts        # IndicacaoDoc → texto plano
+│   ├── fonts.ts                 # Fontes embarcadas (woff2 base64) para o PDF
 │   ├── extract.ts               # Extração de dados estruturados via LLM
 │   ├── validator.ts             # Validação Zod + defaults
 │   ├── normalizer.ts            # Padronização de capitalização/formato
@@ -138,7 +143,9 @@ Acesse **http://localhost:3000**.
 │   ├── mercadopago.ts           # Criação de preferência de pagamento
 │   ├── admin.ts  db.ts  llm.ts  types.ts
 ├── prisma/schema.prisma
-├── scripts/                     # seed-beta, setup-admin, export-exemplos, export-finetuning
+├── assets/fonts/                # woff2 embarcados no PDF (ver docs/fontes.md)
+├── docs/                        # especificação do gabinete, fontes, levantamento do SISCAM
+├── scripts/                     # seed-beta, setup-admin, build-fonts, verifica-pdf, export-*
 ├── tests/                       # unit, integration, e2e
 ├── data/indicacoes_exemplo/     # Few-shot examples por vereador
 ├── auth.ts  auth.config.ts      # NextAuth v5
@@ -153,7 +160,7 @@ Acesse **http://localhost:3000**.
 
 | Rota | Método | Descrição |
 |---|---|---|
-| `/api/indicacao` | POST | Gera uma indicação. Aceita `texto`, `complementos`, `templateId`, `ajuste`. Retorna `success` \| `incomplete` \| `error`; `402` quando o limite do plano é atingido |
+| `/api/indicacao` | POST | Gera uma indicação. Aceita `texto`, `complementos`, `templateId`, `ajuste`. Retorna `success` \| `incomplete` \| `error` (com `texto_final` e `ementa`); `402` quando o limite do plano é atingido |
 | `/api/indicacoes` | GET | Lista as indicações do tenant |
 | `/api/indicacoes/[id]/feedback` | POST | Registra feedback 👍/👎 |
 | `/api/historico` | GET | Últimas 50 indicações do tenant |
@@ -227,7 +234,8 @@ npm run test:watch     # Vitest em watch
 npm run test:coverage  # cobertura
 npm run test:e2e       # Playwright E2E
 npm run seed:beta      # popula tenants/usuários do beta
-npm run verify:pdf     # gera um PDF real e confere margens, páginas e tempo
+npm run verify:pdf     # gera um PDF real e confere margens, páginas, fontes e tempo
+npm run build:fonts    # regera lib/fonts.generated.ts a partir de assets/fonts/
 ```
 
 `verify:pdf` exige o Chromium do Playwright local (`npx playwright install chromium`)
@@ -307,6 +315,14 @@ CI, e o build não conecta ao banco.
 
 Os testes E2E (Playwright) **não** estão no CI: exigem servidor de pé e banco populado.
 Rode localmente com `npm run test:e2e`.
+
+## Documentação de apoio
+
+| Documento | Conteúdo |
+|---|---|
+| [docs/especificacao-gabinete-marcio.md](docs/especificacao-gabinete-marcio.md) | Medidas tipográficas extraídas do `.docx` real do gabinete — fonte de verdade para calibrar o layout |
+| [docs/fontes.md](docs/fontes.md) | Fontes embarcadas no PDF, licenças e como regerar |
+| [docs/siscam-camara-guaruja.md](docs/siscam-camara-guaruja.md) | Levantamento do sistema da Câmara: padrão da ementa, formato dos anexos, como coletar |
 
 ## Isolamento por tenant
 
