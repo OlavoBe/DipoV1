@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { prisma } from './db';
 import { getVereadorPerfil } from './vereadores';
 
@@ -175,12 +176,75 @@ async function buildTenantDefaults(tenantId?: string): Promise<TemplateSettings>
   return base;
 }
 
-/** Aplica o JSON salvo sobre os defaults do tenant. */
+/**
+ * Schema do que pode vir gravado em `Template.settings`.
+ *
+ * Tudo é opcional de propósito: o editor salva parcialmente e o merge com os
+ * defaults completa o resto. O papel do schema não é impor campos, é barrar
+ * lixo — um template gravado por uma versão antiga do editor, um número onde
+ * se espera texto, um JSON truncado. Sem isso o erro só aparecia na hora de
+ * gerar o documento, que é o pior momento possível.
+ */
+const TemplateSettingsSchema = z.object({
+  version: z.number().optional(),
+  institution: z.object({
+    name: z.string(), title: z.string(), subtitle: z.string(),
+    gabinete: z.string(), email: z.string(),
+  }).partial().optional(),
+  vereador: z.object({
+    nome: z.string(), cargo: z.string(), salaLocal: z.string(), nomePrefeito: z.string(),
+  }).partial().optional(),
+  logos: z.object({
+    left: z.string().nullable(), leftSize: z.number(),
+    right: z.string().nullable(), rightSize: z.number(),
+    partido: z.string().nullable(), partidoSize: z.number(),
+    watermark: z.string().nullable(), watermarkOpacity: z.number(), watermarkSize: z.number(),
+    signature: z.string().nullable(), signatureSize: z.number(),
+  }).partial().optional(),
+  typography: z.object({
+    fontFamily: z.string(), fontFamilyCabecalho: z.string(),
+    fontSize: z.number(), lineHeight: z.number(),
+    paragraphSpacing: z.number(), paragraphIndent: z.number(),
+    textJustified: z.boolean(),
+  }).partial().optional(),
+  colors: z.object({
+    text: z.string(), header: z.string(), background: z.string(),
+    divider: z.string(), dividerWidth: z.number(),
+    leftBorder: z.boolean(), leftBorderColor: z.string(), footerLine: z.boolean(),
+  }).partial().optional(),
+  layout: z.object({
+    marginLateral: z.number(), marginTopBottom: z.number(),
+  }).partial().optional(),
+  content: z.string().optional(),
+}).passthrough();
+
+/**
+ * Aplica o JSON salvo sobre os defaults do tenant.
+ *
+ * JSON inválido ou fora do schema não derruba a geração: registra o motivo e
+ * devolve os defaults, que sempre produzem um documento válido.
+ */
 function mergeSettings(defaults: TemplateSettings, settingsJson: string): TemplateSettings {
-  const parsed = JSON.parse(settingsJson) as Partial<TemplateSettings>;
+  let bruto: unknown;
+  try {
+    bruto = JSON.parse(settingsJson);
+  } catch (e) {
+    console.warn('[template] settings não é JSON válido, usando defaults:', e);
+    return defaults;
+  }
+
+  const resultado = TemplateSettingsSchema.safeParse(bruto);
+  if (!resultado.success) {
+    console.warn(
+      '[template] settings fora do schema, usando defaults:',
+      resultado.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; '),
+    );
+    return defaults;
+  }
+
   return deepMerge(
     defaults as unknown as Record<string, unknown>,
-    parsed as unknown as Record<string, unknown>,
+    resultado.data as unknown as Record<string, unknown>,
   ) as unknown as TemplateSettings;
 }
 

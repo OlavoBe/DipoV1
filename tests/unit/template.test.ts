@@ -129,6 +129,52 @@ describe('defaults derivados do tenant', () => {
   });
 });
 
+describe('settings corrompido não derruba a geração', () => {
+  beforeEach(() => {
+    mocks.prisma.tenant.findUnique.mockResolvedValue({
+      nomeVereador: 'Maria Souza', municipio: 'Guarujá', vereadorSlug: 'outro',
+    });
+  });
+
+  it('JSON inválido cai nos defaults do tenant', async () => {
+    mocks.prisma.template.findFirst.mockResolvedValue({ settings: '{"typography": ' });
+    const t = await getActiveTemplate(TENANT_A);
+
+    expect(t.vereador.nome).toBe('MARIA SOUZA');
+    expect(t.typography.fontSize).toBe(DEFAULT_SETTINGS.typography.fontSize);
+  });
+
+  it('tipo errado num campo cai nos defaults em vez de gerar documento quebrado', async () => {
+    // fontSize como texto quebraria o CSS silenciosamente
+    mocks.prisma.template.findFirst.mockResolvedValue({
+      settings: JSON.stringify({ typography: { fontSize: 'grande' } }),
+    });
+    const t = await getActiveTemplate(TENANT_A);
+
+    expect(t.typography.fontSize).toBe(DEFAULT_SETTINGS.typography.fontSize);
+  });
+
+  it('template parcial válido é aplicado normalmente', async () => {
+    mocks.prisma.template.findFirst.mockResolvedValue({
+      settings: JSON.stringify({ typography: { fontSize: 14 }, layout: { marginLateral: 31.7 } }),
+    });
+    const t = await getActiveTemplate(TENANT_A);
+
+    expect(t.typography.fontSize).toBe(14);
+    expect(t.layout.marginLateral).toBe(31.7);
+    expect(t.typography.lineHeight).toBe(DEFAULT_SETTINGS.typography.lineHeight);
+  });
+
+  it('campo desconhecido não invalida o template', async () => {
+    mocks.prisma.template.findFirst.mockResolvedValue({
+      settings: JSON.stringify({ typography: { fontSize: 13 }, campoNovoDoEditor: true }),
+    });
+    const t = await getActiveTemplate(TENANT_A);
+
+    expect(t.typography.fontSize).toBe(13);
+  });
+});
+
 describe('getTemplateById', () => {
   it('restringe a busca ao tenant', async () => {
     await getTemplateById('tpl-1', TENANT_A);
