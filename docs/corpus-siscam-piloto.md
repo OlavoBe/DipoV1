@@ -140,7 +140,7 @@ gabinete, e são exatamente as que o produto atende pior.
 
 ---
 
-## Achado 4 — o corpo do texto exige OCR
+## Achado 4 — o corpo do texto exige OCR, e ele chega com um ano de atraso
 
 Confirmado o que o levantamento anterior indicava, agora com o arquivo na mão:
 
@@ -152,8 +152,34 @@ Nenhuma fonte embarcada, nenhuma camada de texto. O PDF público é o scan do
 papel assinado. As ementas — que estão em texto — cobrem **o que** foi pedido;
 o corpo, que é o que o Dipo gera, só sai por OCR de imagem de fax a 200 DPI.
 
-Os PDFs estão sendo baixados para `E:\Dipo\corpus-siscam\<slug>\anexos\`. A
-decisão de OCR fica para a fase 2 — ver o roadmap.
+**Coleta concluída: 1.452 PDFs, 577 MB, zero erros.** E a cobertura tem um
+padrão exato:
+
+| Ano | `marcio_pet` | `adriana_machado` |
+|---|---:|---:|
+| 2021 | 202/202 (100%) | — |
+| 2022 | 217/218 (100%) | — |
+| 2023 | 249/250 (100%) | — |
+| 2024 | 218/218 (100%) | — |
+| 2025 | 287/287 (100%) | 279/279 (100%) |
+| **2026** | **0/137 (0%)** | **0/306 (0%)** |
+
+Não é falha da coleta: **ano fechado tem 100%, o ano corrente tem 0%**. O scan
+entra depois que a sessão é arquivada, então o corpus de *corpos de texto*
+fica permanentemente cerca de um ano atrás do corpus de *ementas*.
+
+Duas consequências práticas:
+
+1. **A ementa é o único material disponível sobre o que a Casa pediu este
+   ano.** Reforça a decisão de tratar ementa e corpo como trilhas separadas —
+   a ementa já dá para explorar hoje, o corpo não.
+2. **Vale re-rodar a coleta periodicamente.** Os 443 documentos de 2026 vão
+   ganhar anexo ao longo do próximo ano; o script pula o que já baixou, então
+   é barato repetir.
+
+A média é de ~400 KB por PDF (2 páginas). Isso dimensiona o custo de OCR:
+qualquer decisão que envolva mandar as 1.452 páginas duplas para um serviço
+pago precisa dessa conta feita antes.
 
 ---
 
