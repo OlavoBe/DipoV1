@@ -13,7 +13,8 @@ Em beta com 4 gabinetes da Câmara Municipal de Guarujá/SP.
 - **Next.js 16** (App Router, Turbopack) + TypeScript + Tailwind CSS 3
 - **PostgreSQL** via Prisma 5 (hospedado no Railway)
 - **NextAuth v5 (beta)** — magic link por e-mail (Resend) + Prisma adapter, sessão única por usuário
-- **LLM** — Anthropic Claude ou OpenAI, com modelos separados para extração e geração
+- **LLM** — OpenAI, com modelos separados para extração e geração (há um adaptador
+  para a Anthropic no código, não usado)
 - **PDF** — Playwright/Chromium (`@sparticuz/chromium` em serverless)
 - **DOCX** — biblioteca `docx`
 - **Pagamentos** — Mercado Pago (checkout + webhook)
@@ -78,8 +79,8 @@ Acesse **http://localhost:3000**.
 | Variável | Obrigatória | Descrição |
 |---|---|---|
 | `DATABASE_URL` | sim | Connection string PostgreSQL |
-| `LLM_API_KEY` | sim | Chave da Anthropic ou da OpenAI |
-| `LLM_PROVIDER` | não | `anthropic` \| `openai` (padrão: `anthropic`) |
+| `LLM_API_KEY` | sim | Chave da OpenAI |
+| `LLM_PROVIDER` | não | `openai` \| `anthropic` (padrão: `openai`) |
 | `LLM_MODEL_EXTRACT` | não | Modelo barato para extração de dados |
 | `LLM_MODEL_GENERATE` | não | Modelo mais capaz para o texto formal |
 | `NEXTAUTH_SECRET` | sim | `openssl rand -base64 32` (aceita `AUTH_SECRET`) |
@@ -94,13 +95,14 @@ Acesse **http://localhost:3000**.
 | Variável | Descrição |
 |---|---|
 | `TEST_MODE` | `true` habilita `/test-login` (login sem magic link) |
+| `LLM_FAKE` | `true` **junto com `TEST_MODE`** faz o `lib/llm.ts` responder sem chamar a API — só para E2E |
 
 ### Modelos padrão por provider
 
 | | Extração | Geração |
 |---|---|---|
-| Anthropic | `claude-3-5-haiku-20241022` | `claude-sonnet-4-5-20250929` |
-| OpenAI | `gpt-4o-mini` | `gpt-4o` |
+| **OpenAI** (em uso) | `gpt-4o-mini` | `gpt-4o` |
+| Anthropic (adaptador inerte) | `claude-haiku-4-5` | `claude-sonnet-4-5-20250929` |
 
 ---
 

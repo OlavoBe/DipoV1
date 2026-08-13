@@ -189,8 +189,28 @@ Cada vereador tem um estilo de texto distinto que deve ser respeitado na geraç�
 
 ## Regra de Modelo LLM
 
-- Geração de indicações **DEVE** usar `claude-sonnet-4-5-20250929` ou superior (NÃO Haiku)
-- Extração pode usar Haiku (`claude-3-5-haiku-20241022`) para economizar custo
-- Variável `LLM_MODEL_GENERATE` deve ser `claude-sonnet-4-5-20250929` em produção
-- Variável `LLM_MODEL_EXTRACT` pode ser `claude-3-5-haiku-20241022` para extração barata
-- Para OpenAI: `LLM_MODEL_GENERATE=gpt-4o`, `LLM_MODEL_EXTRACT=gpt-4o-mini`
+**O Dipo roda em OpenAI.** É o provider padrão no código e o único em uso —
+não sugira migrar para outro nem escreva código que dependa da Anthropic.
+
+| Etapa | Variável | Modelo | Por quê |
+|---|---|---|---|
+| Extração | `LLM_MODEL_EXTRACT` | `gpt-4o-mini` | Trabalho estruturado e barato; roda a cada geração |
+| Geração | `LLM_MODEL_GENERATE` | `gpt-4o` | Texto formal — **não rebaixar para o modelo de extração** |
+| Ementa | (usa o de extração) | `gpt-4o-mini` | Fórmula fixa; roda em paralelo com a geração |
+
+O adaptador da Anthropic continua no `lib/llm.ts` como alternativa inerte.
+Ele não é exercitado por nenhum ambiente: ao mexer no adaptador, o caminho que
+precisa continuar funcionando é o `openai`.
+
+### ⚠️ Modelo aposentado é falha silenciosa até o dia em que não é
+
+O default de extração da Anthropic apontava para `claude-3-5-haiku-20241022`,
+**aposentado em 19/02/2026** — a API responde 404. Nada quebrou porque o `.env`
+sempre definiu `LLM_PROVIDER=openai`, mas o default do código dizia
+`anthropic`: um ambiente novo, com `.env` incompleto, cairia direto no id
+morto. Hoje o default do código é `openai`, alinhado com a realidade.
+
+A lição vale para o lado da OpenAI também: **confira o status do id antes de
+fixar um modelo**, e prefira registrar a data da última verificação junto.
+Como o pipeline extrai antes de gerar, um id morto na extração derruba a
+indicação inteira, não só uma etapa.
