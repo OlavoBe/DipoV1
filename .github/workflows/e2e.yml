@@ -1,0 +1,101 @@
+name: E2E
+
+# Job separado do CI de propósito. O E2E é caro (build + Chromium + servidor de
+# pé) e mais lento que todo o resto somado; misturado ao CI, atrasaria o retorno
+# de um erro de tipo. Aqui ele roda em paralelo e falha por conta própria.
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  e2e:
+    name: Playwright (fluxo completo)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dipo_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/dipo_e2e
+      AUTH_SECRET: e2e-secret-nao-usar-em-producao
+      NEXTAUTH_SECRET: e2e-secret-nao-usar-em-producao
+      NEXTAUTH_URL: http://localhost:3000
+      RESEND_API_KEY: re_e2e_dummy
+      EMAIL_FROM: e2e@example.com
+      MERCADOPAGO_ACCESS_TOKEN: TEST-e2e-dummy
+      NEXT_TELEMETRY_DISABLED: '1'
+
+      # As duas chaves que destravam o E2E:
+      #   TEST_MODE  → habilita /test-login (login sem magic link)
+      #   LLM_FAKE   → lib/llm.ts responde sem chamar a API do modelo
+      # Só valem juntas, e nenhuma das duas existe em produção.
+      TEST_MODE: 'true'
+      LLM_FAKE: 'true'
+      LLM_API_KEY: e2e-dummy
+      LLM_PROVIDER: openai
+      CI: 'true'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Gerar Prisma Client
+        run: npx prisma generate
+
+      - name: Aplicar migrations
+        run: npx prisma migrate deploy
+
+      - name: Popular contas de teste
+        run: node scripts/seed-e2e.mjs
+
+      # O build precisa vir antes: em CI o Playwright sobe `npm run start`,
+      # não o dev server (ver playwright.config.ts).
+      - name: Build de produção
+        run: npm run build
+
+      # Só o Chromium: é o único projeto declarado no playwright.config.ts.
+      - name: Instalar Chromium do Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Rodar E2E
+        run: npx playwright test
+
+      # O trace só é gravado na primeira repetição de um teste que falhou —
+      # é o que permite reconstituir a falha sem tentar reproduzir na mão.
+      - name: Guardar relatório
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

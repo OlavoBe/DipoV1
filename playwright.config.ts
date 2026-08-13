@@ -16,11 +16,13 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  // Inicia o servidor de dev antes dos testes
+  // Local: sobe o dev server (e reaproveita um que já esteja de pé).
+  // CI: roda contra o build de produção — é o artefato que vai para a Vercel,
+  // e o dev server esconde erro que só aparece compilado.
   webServer: {
-    command: 'npm run dev',
+    command: process.env.CI ? 'npm run start' : 'npm run dev',
     url: 'http://localhost:3000',
-    reuseExistingServer: true,
-    timeout: 60_000,
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
   },
 });
