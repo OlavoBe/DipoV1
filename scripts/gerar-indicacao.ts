@@ -15,6 +15,8 @@ import { writeFileSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { indicacaoPipeline } from '../lib/pipeline';
 import { generatePdfComTemplate } from '../lib/pdf';
+import { getLayout } from '../lib/layouts';
+import { parseTextoToDoc } from '../lib/doc-parser';
 import { TEMPLATE_MARCIO } from './preset-marcio';
 
 const RELATO_PADRAO =
@@ -59,6 +61,22 @@ async function main() {
   const t1 = Date.now();
   const pdf = await generatePdfComTemplate(resultado.textoFinal, TEMPLATE_MARCIO);
   writeFileSync(saida, pdf);
+
+  // Guarda o HTML e o texto ao lado do PDF: permite conferir o resultado e
+  // re-renderizar sem gastar outra chamada de LLM.
+  const base = saida.replace(/\.pdf$/, '');
+  writeFileSync(
+    base + '.html',
+    getLayout(TEMPLATE_MARCIO.layoutId)(
+      parseTextoToDoc(resultado.textoFinal, TEMPLATE_MARCIO),
+      TEMPLATE_MARCIO,
+      {},
+    ),
+  );
+  writeFileSync(
+    base + '.txt',
+    ['EMENTA:', resultado.ementa || '(não gerada)', '', resultado.textoFinal, ''].join('\n'),
+  );
 
   const s = pdf.toString('latin1');
   const paginas = (s.match(/\/Count\s+(\d+)/g) ?? []).map((c) => parseInt(c.match(/\d+/)![0], 10));
