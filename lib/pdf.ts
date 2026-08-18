@@ -31,11 +31,21 @@ async function launchBrowser(): Promise<Browser> {
   if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
     const chromium = (await import('@sparticuz/chromium')).default;
     const { chromium: pw } = await import('playwright-core');
-    // v130+ não embute o binário — precisa baixar de URL remota (salvo em /tmp)
-    const executablePath = await chromium.executablePath(
-      process.env.CHROMIUM_EXECUTABLE_PATH ??
-        'https://github.com/Sparticuz/chromium/releases/download/v143.0.0/chromium-v143.0.0-pack.tar',
-    );
+
+    // O pacote @sparticuz/chromium (não o -min) já traz o binário embutido, e
+    // `executablePath()` sem argumento o extrai localmente.
+    //
+    // Antes daqui saía uma URL fixa de release do GitHub, apontando para uma
+    // versão que não existe (v143.0.0 com o pacote em 143.0.4) — o download
+    // devolvia 404 e a geração de PDF quebrava em produção com
+    // "Unexpected status code: 404". Além de errada, a URL colocava um domínio
+    // de terceiro no caminho crítico a cada cold start.
+    //
+    // CHROMIUM_EXECUTABLE_PATH continua disponível como escape (caminho local
+    // ou URL de um pack próprio), mas o padrão não depende mais de rede.
+    const executablePath = process.env.CHROMIUM_EXECUTABLE_PATH
+      ? await chromium.executablePath(process.env.CHROMIUM_EXECUTABLE_PATH)
+      : await chromium.executablePath();
     return pw.launch({
       args: [...chromium.args, '--font-render-hinting=none'],
       executablePath,
