@@ -25,6 +25,16 @@ const PAG = {
 const BRASAO = { largura: 25.7, altura: 28.0, deslocEsq: -7.0, deslocTopo: 3.8 };
 const PARTIDO = { largura: 42.0, altura: 15.0 };
 
+/**
+ * O brasão fica 7mm à esquerda da margem do texto (offset do anchor no Word).
+ * O Chromium recorta tudo que ultrapassa a área definida por `@page margin`, o
+ * que cortava o brasão ao meio. Então a página abre 7mm a mais de cada lado e o
+ * conteúdo devolve esses 7mm em padding — o texto continua em 31,7mm e o brasão
+ * cabe inteiro dentro da área imprimível.
+ */
+const SANGRIA = Math.abs(BRASAO.deslocEsq);
+const MARGEM_PAGINA = PAG.margemLateral - SANGRIA;
+
 // ── Tamanhos (pt), extraídos dos operadores Tf do PDF real ────
 const PT = {
   instituicao: 26,
@@ -92,7 +102,7 @@ ${buildFontFaceCss()}
 
 @page {
   size: A4;
-  margin: ${PAG.topoCabecalho}mm ${PAG.margemLateral}mm ${PAG.margemInferior}mm ${PAG.margemLateral}mm;
+  margin: ${PAG.topoCabecalho}mm ${MARGEM_PAGINA}mm ${PAG.margemInferior}mm ${MARGEM_PAGINA}mm;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -103,6 +113,8 @@ body {
   font-size: ${pt(PT.corpo)};
   color: ${cor};
   line-height: ${t.typography.lineHeight || 1.15};
+  /* devolve a sangria aberta na @page, para o texto ficar em ${PAG.margemLateral}mm */
+  padding: 0 ${SANGRIA}mm;
 }
 
 /* ── Cabeçalho ─────────────────────────────── */

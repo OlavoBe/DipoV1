@@ -5,13 +5,21 @@
 import { writeFileSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { generatePdfComTemplate } from '../lib/pdf';
+import { readFileSync } from 'fs';
 import { TEMPLATE_MARCIO, TEXTO_REFERENCIA } from './preset-marcio';
 
 async function main() {
-  const saida = process.argv[2] ?? join(__dirname, '..', 'tmp', 'preview-marcio.pdf');
+  // 1o argumento: arquivo .txt com o texto (opcional; sem ele usa a referencia)
+  // 2o argumento: caminho do PDF de saida
+  const entrada = process.argv[2];
+  const texto = entrada && entrada.endsWith('.txt')
+    ? readFileSync(entrada, 'utf8').replace(/^EMENTA:[\s\S]*?\n\n/, '').trim()
+    : TEXTO_REFERENCIA;
+  const saida = (entrada && !entrada.endsWith('.txt') ? entrada : process.argv[3])
+    ?? join(__dirname, '..', 'tmp', 'preview-marcio.pdf');
   mkdirSync(dirname(saida), { recursive: true });
 
-  const pdf = await generatePdfComTemplate(TEXTO_REFERENCIA, TEMPLATE_MARCIO);
+  const pdf = await generatePdfComTemplate(texto, TEMPLATE_MARCIO);
   writeFileSync(saida, pdf);
 
   const s = pdf.toString('latin1');
