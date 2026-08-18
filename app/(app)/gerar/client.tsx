@@ -18,6 +18,9 @@ import {
   ThumbsDown,
   ChevronDown,
   Pencil,
+  FileDown,
+  FileText,
+  Printer,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ExtractedData } from '@/lib/types';
@@ -444,12 +447,43 @@ function ResultCard({ state, onRetry, onRegenerate, onAjuste, loadingAjuste }: R
         </div>
 
         {/* Ações */}
-        <div className="px-4 py-3 border-t border-gray-100 flex gap-2 flex-wrap shrink-0">
-          <CopyButton text={state.textoFinal} />
-          <button onClick={onRegenerate} className="btn-secondary text-sm">
-            <RefreshCw className="h-3.5 w-3.5" />
-            Nova indicação
-          </button>
+        <div className="px-4 py-3 border-t border-gray-100 flex flex-col gap-2 shrink-0">
+          {/* Impressão e download — o documento já sai no padrão do gabinete */}
+          <div className="flex gap-2 flex-wrap">
+            <a
+              href={`/api/pdf/${state.recordId}?inline=1`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-primary flex-1 justify-center text-sm min-w-[150px]"
+            >
+              <Printer className="h-4 w-4" />
+              Imprimir
+            </a>
+            <a
+              href={`/api/pdf/${state.recordId}`}
+              download
+              className="btn-secondary text-sm justify-center min-w-[120px]"
+            >
+              <FileDown className="h-3.5 w-3.5" />
+              Baixar PDF
+            </a>
+            <a
+              href={`/api/docx/${state.recordId}`}
+              download
+              className="btn-secondary text-sm justify-center min-w-[120px]"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Baixar Word
+            </a>
+          </div>
+
+          <div className="flex gap-2 flex-wrap">
+            <CopyButton text={state.textoFinal} />
+            <button onClick={onRegenerate} className="btn-secondary text-sm">
+              <RefreshCw className="h-3.5 w-3.5" />
+              Nova indicação
+            </button>
+          </div>
         </div>
 
         {/* Ajuste */}

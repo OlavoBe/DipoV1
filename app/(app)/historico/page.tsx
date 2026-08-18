@@ -14,6 +14,8 @@ import {
   X,
   ThumbsUp,
   ThumbsDown,
+  Printer,
+  FileDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -239,6 +241,25 @@ function IndicacaoCard({ item }: { item: IndicacaoItem }) {
         {/* Ações */}
         <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
           <FeedbackButtons id={item.id} initialFeedback={item.feedback} />
+          <a
+            href={`/api/pdf/${item.id}?inline=1`}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Abrir o PDF para imprimir"
+            className="btn-secondary text-xs px-3 py-1.5 gap-1.5 justify-center"
+          >
+            <Printer className="h-3.5 w-3.5" />
+            Imprimir
+          </a>
+          <a
+            href={`/api/pdf/${item.id}`}
+            download
+            title="Baixar o PDF"
+            className="btn-secondary text-xs px-3 py-1.5 gap-1.5 justify-center"
+          >
+            <FileDown className="h-3.5 w-3.5" />
+            PDF
+          </a>
           {item.ementa && (
             <button
               onClick={handleCopyEmenta}

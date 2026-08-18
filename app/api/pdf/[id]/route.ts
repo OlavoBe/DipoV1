@@ -23,6 +23,9 @@ export async function GET(
 
     const { id } = await params;
     const templateId = req.nextUrl.searchParams.get('templateId') ?? undefined;
+    // ?inline=1 abre no visualizador do navegador (botão Imprimir);
+    // sem ele, baixa o arquivo.
+    const inline = req.nextUrl.searchParams.get('inline') === '1';
 
     const record = await prisma.indicacao.findFirst({
       where: { id, tenantId },
@@ -40,7 +43,7 @@ export async function GET(
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Content-Disposition': `${inline ? 'inline' : 'attachment'}; filename="${filename}"`,
         'Content-Length': pdfBuffer.length.toString(),
       },
     });
