@@ -8,7 +8,8 @@
  * Dois pontos reproduzem o original de propósito, mesmo parecendo inconsistência:
  *  - o preâmbulo é justificado, mas o parágrafo "Indico à Mesa..." fica alinhado
  *    à esquerda. É assim no documento do gabinete.
- *  - o brasão fica 7mm à esquerda da margem (offset do anchor no Word).
+ *  - o brasão fica à esquerda da margem do texto (offset do anchor no Word,
+ *    depois ajustado a pedido do gabinete).
  */
 import type { LayoutFn } from './types';
 import { escapeHtml, resolverStack, imgTag, buildFontFaceCss } from './shared';
@@ -22,15 +23,18 @@ const PAG = {
   topoCorpo: 56.9,
 };
 
-const BRASAO = { largura: 25.7, altura: 28.0, deslocEsq: -7.0, deslocTopo: 3.8 };
+const BRASAO = { largura: 25.7, altura: 28.0, deslocEsq: -12.0, deslocTopo: 3.8 };
 const PARTIDO = { largura: 42.0, altura: 15.0 };
 
 /**
- * O brasão fica 7mm à esquerda da margem do texto (offset do anchor no Word).
- * O Chromium recorta tudo que ultrapassa a área definida por `@page margin`, o
- * que cortava o brasão ao meio. Então a página abre 7mm a mais de cada lado e o
- * conteúdo devolve esses 7mm em padding — o texto continua em 31,7mm e o brasão
- * cabe inteiro dentro da área imprimível.
+ * O brasão fica à esquerda da margem do texto (`deslocEsq`). O Chromium recorta
+ * tudo que ultrapassa a área definida por `@page margin`, o que cortava o brasão
+ * ao meio. Então a página abre `SANGRIA` a mais de cada lado e o conteúdo devolve
+ * esses mesmos milímetros em padding: o texto continua em 31,7mm e o brasão cabe
+ * inteiro dentro da área imprimível.
+ *
+ * Ao mudar `deslocEsq`, a margem da página acompanha sozinha — mas confira com
+ * `node tools/preview-a4.mjs`, que reporta a distância do brasão até a borda.
  */
 const SANGRIA = Math.abs(BRASAO.deslocEsq);
 const MARGEM_PAGINA = PAG.margemLateral - SANGRIA;
