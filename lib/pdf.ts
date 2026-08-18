@@ -27,25 +27,53 @@ function resolverStack(fontFamily: string): string {
 // • Dev local       → playwright nativo (binário local)
 // ─────────────────────────────────────────────
 
+/**
+ * Pack usado como reserva quando o binário embarcado não está disponível.
+ *
+ * A URL que estava fixada no código apontava para `v143.0.0` e sem sufixo de
+ * arquitetura — dois erros: a versão instalada é 143.0.4, e os assets passaram
+ * a ser publicados por arquitetura (`.x64` / `.arm64`). O download devolvia 404
+ * e a geração de PDF quebrava em produção com "Unexpected status code: 404".
+ */
+const PACK_CHROMIUM_RESERVA =
+  'https://github.com/Sparticuz/chromium/releases/download/v143.0.4/chromium-v143.0.4-pack.x64.tar';
+
+/**
+ * Resolve o executável do Chromium no ambiente serverless.
+ *
+ * Ordem: `CHROMIUM_EXECUTABLE_PATH` → binário embarcado no pacote → pack remoto.
+ *
+ * O pacote `@sparticuz/chromium` traz o navegador em `bin/*.br`, mas esses
+ * arquivos não são alcançáveis por `import`: o rastreamento de dependências do
+ * Next não os inclui no bundle, a função sobe sem eles e o launch falha com
+ * "The input directory .../bin does not exist". Daí a reserva por download.
+ *
+ * Para tirar o GitHub do cold start de vez, hospede o pack e aponte
+ * `CHROMIUM_EXECUTABLE_PATH` para ele.
+ */
+async function resolverChromium(
+  chromium: { executablePath: (caminho?: string) => Promise<string> },
+): Promise<string> {
+  const configurado = process.env.CHROMIUM_EXECUTABLE_PATH;
+  if (configurado) return chromium.executablePath(configurado);
+
+  try {
+    return await chromium.executablePath();
+  } catch (err) {
+    console.warn(
+      '[pdf] binário local do Chromium indisponível, usando o pack remoto:',
+      err instanceof Error ? err.message : err,
+    );
+    return chromium.executablePath(PACK_CHROMIUM_RESERVA);
+  }
+}
+
 async function launchBrowser(): Promise<Browser> {
   if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
     const chromium = (await import('@sparticuz/chromium')).default;
     const { chromium: pw } = await import('playwright-core');
 
-    // O pacote @sparticuz/chromium (não o -min) já traz o binário embutido, e
-    // `executablePath()` sem argumento o extrai localmente.
-    //
-    // Antes daqui saía uma URL fixa de release do GitHub, apontando para uma
-    // versão que não existe (v143.0.0 com o pacote em 143.0.4) — o download
-    // devolvia 404 e a geração de PDF quebrava em produção com
-    // "Unexpected status code: 404". Além de errada, a URL colocava um domínio
-    // de terceiro no caminho crítico a cada cold start.
-    //
-    // CHROMIUM_EXECUTABLE_PATH continua disponível como escape (caminho local
-    // ou URL de um pack próprio), mas o padrão não depende mais de rede.
-    const executablePath = process.env.CHROMIUM_EXECUTABLE_PATH
-      ? await chromium.executablePath(process.env.CHROMIUM_EXECUTABLE_PATH)
-      : await chromium.executablePath();
+    const executablePath = await resolverChromium(chromium);
     return pw.launch({
       args: [...chromium.args, '--font-render-hinting=none'],
       executablePath,
