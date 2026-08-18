@@ -137,7 +137,31 @@ app/api/test-login/route.ts      ← endpoint que cria a sessão no banco
 - **Não usar `git add -A`** — adicionar arquivos específicos para evitar
   commitar `.env.local` acidentalmente.
 
+
+- **O preview de layout precisa recortar a área imprimível.** O Chromium corta
+  o que ultrapassa a `@page`. Um preview sem `overflow:hidden` e sem as margens
+  aplicadas mostra o documento inteiro enquanto o PDF sai cortado — foi assim
+  que um brasão cortado passou despercebido. Use `tools/preview-a4.mjs`, que já
+  reproduz o recorte e reporta a distância do brasão até a borda.
+- **Os testes locais NÃO cobrem o caminho de produção do PDF.** `lib/pdf.ts` tem
+  dois ramos: serverless (`@sparticuz/chromium`) e local (`playwright`). Tudo o
+  que roda na máquina exercita só o segundo. Um PDF quebrado em produção já
+  sobreviveu a 184 testes e a um CI verde. Ao mexer no ramo serverless, valide
+  no deploy — `/api/demo` é público e gera PDF pelo mesmo caminho.
+- **Layout novo só entra com `layoutId` no template.** Sem ele o gerador segue
+  no HTML legado. É o que protege os gabinetes que ainda não foram calibrados —
+  não remova essa condição.
+- **Antes de apagar ou sobrescrever dados**, liste o que existe e mostre ao
+  usuário. Um pedido para "apagar os outros templates" pode alcançar gabinetes
+  que ele não tinha em mente. `scripts/aplicar-template.ts` faz dry-run por
+  padrão — siga esse padrão em scripts que escrevem em produção.
+
 ---
+
+## Onde estamos
+
+Leia `docs/estado-do-projeto.md` ao retomar o trabalho: o que existe, o que já
+quebrou e por quê, e as pendências em ordem de prioridade.
 
 ## Limites por plano (lib/planos.ts)
 

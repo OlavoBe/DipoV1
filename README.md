@@ -345,6 +345,7 @@ Rode localmente com `npm run test:e2e`.
 
 | Documento | Conteúdo |
 |---|---|
+| [docs/estado-do-projeto.md](docs/estado-do-projeto.md) | **Comece por aqui ao retomar** — o que existe, o que já quebrou e as pendências em ordem |
 | [docs/especificacao-gabinete-marcio.md](docs/especificacao-gabinete-marcio.md) | Medidas tipográficas extraídas do `.docx` real do gabinete — fonte de verdade para calibrar o layout |
 | [docs/fontes.md](docs/fontes.md) | Fontes embarcadas no PDF, licenças e como regerar |
 | [docs/siscam-camara-guaruja.md](docs/siscam-camara-guaruja.md) | Levantamento do sistema da Câmara: padrão da ementa, formato dos anexos, como coletar |
