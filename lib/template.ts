@@ -57,6 +57,10 @@ export interface TemplateSettings {
     marginLateral: number;   // mm
     marginTopBottom: number;  // mm
   };
+  /** Layout estrutural. Ausente = HTML legado (mantem o visual dos templates antigos). */
+  layoutId?: string;
+  /** Escape hatch: CSS injetado por ultimo, para ajustes finos por gabinete. */
+  customCss?: string;
   content?: string;
 }
 
@@ -215,6 +219,8 @@ const TemplateSettingsSchema = z.object({
   layout: z.object({
     marginLateral: z.number(), marginTopBottom: z.number(),
   }).partial().optional(),
+  layoutId: z.string().optional(),
+  customCss: z.string().optional(),
   content: z.string().optional(),
 }).passthrough();
 

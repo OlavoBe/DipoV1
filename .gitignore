@@ -32,3 +32,6 @@ npm-debug.log*
 
 # PDFs gerados (temporários)
 public/pdfs/*.pdf
+
+# Saidas de preview/diff de layout
+tmp/

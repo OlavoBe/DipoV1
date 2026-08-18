@@ -1,5 +1,7 @@
 import { getTemplate, type TemplateSettings } from './template';
 import { buildFontFaceCss, STACK_CORPO, STACK_CABECALHO } from './fonts';
+import { getLayout } from './layouts';
+import { parseTextoToDoc } from './doc-parser';
 import type { Browser } from 'playwright-core';
 
 /**
@@ -246,7 +248,14 @@ async function generatePdfInternal(textoFinal: string, t: ReturnType<typeof getT
       .filter((s) => s >= 9);
 
     for (const fontSize of fontSizes) {
-      const html = buildHtml(textoFinal, t, fontSize, demo);
+      // Template com layoutId usa o layout estruturado; sem ele, segue o HTML
+      // legado — assim nenhum gabinete muda de aparencia sem ser configurado.
+      const html = t.layoutId
+        ? getLayout(t.layoutId)(parseTextoToDoc(textoFinal, t), t, {
+            demo,
+            fatorCompressao: fontSize / (t.typography.fontSize || 12),
+          })
+        : buildHtml(textoFinal, t, fontSize, demo);
       await page.setContent(html, { waitUntil: 'networkidle' });
 
       // Garante que as fontes terminaram de carregar antes de medir e imprimir.
@@ -289,6 +298,18 @@ export async function generatePdf(
 ): Promise<Buffer> {
   const t = await getTemplate(templateId, tenantId);
   return generatePdfInternal(textoFinal, t, false);
+}
+
+/**
+ * Gera o PDF a partir de um TemplateSettings já montado, sem consultar o banco.
+ * Usado para preview e calibração de layout (scripts/preview-layout.ts).
+ */
+export async function generatePdfComTemplate(
+  textoFinal: string,
+  t: TemplateSettings,
+  demo = false,
+): Promise<Buffer> {
+  return generatePdfInternal(textoFinal, t, demo);
 }
 
 /** Demo pública: sem tenant, usa os defaults neutros. */
