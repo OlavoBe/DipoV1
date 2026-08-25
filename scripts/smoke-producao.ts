@@ -70,11 +70,30 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  // Ler como texto antes de parsear: um "não é JSON" sem mostrar o que veio
+  // não diz nada. Na primeira execução real a resposta era a tela de SSO da
+  // Vercel com HTTP 200, e a mensagem sozinha não permitia perceber isso.
+  const texto = await res.text();
   let corpo: Resposta;
+
   try {
-    corpo = (await res.json()) as Resposta;
+    corpo = JSON.parse(texto) as Resposta;
   } catch {
     console.error(`✗ resposta não-JSON (HTTP ${res.status}).`);
+    console.error(`  content-type: ${res.headers.get('content-type') ?? '—'}`);
+
+    if (res.redirected) {
+      console.error(`  a requisição foi redirecionada para: ${res.url}`);
+    }
+
+    if (/vercel|_vercel_sso|Authentication Required/i.test(texto)) {
+      console.error('');
+      console.error('  Isto é a tela de proteção de deploy da Vercel, não a rota.');
+      console.error('  SMOKE_URL precisa apontar para o domínio público de produção,');
+      console.error('  não para a URL imutável do deploy (dipo-v1-<hash>.vercel.app).');
+    }
+
+    console.error(`  início do corpo: ${texto.slice(0, 200).replace(/s+/g, ' ')}`);
     process.exit(1);
   }
 

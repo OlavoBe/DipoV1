@@ -24,8 +24,7 @@ jobs:
     timeout-minutes: 5
 
     # Cada deploy emite vários deployment_status (pending, in_progress...).
-    # Só o sucesso em produção interessa: os previews da Vercel ficam atrás da
-    # proteção de deploy e responderiam 401 ao smoke test.
+    # Só o sucesso em produção interessa.
     if: >-
       github.event.deployment_status.state == 'success' &&
       github.event.deployment_status.environment == 'Production'
@@ -43,6 +42,13 @@ jobs:
       # Instalar 600 pacotes para um GET seria trocar 20s por 2min.
       - name: Smoke test
         env:
-          SMOKE_URL: ${{ github.event.deployment_status.environment_url }}
+          # NÃO usar github.event.deployment_status.environment_url: ele aponta
+          # para a URL imutável do deploy (dipo-v1-<hash>.vercel.app), que fica
+          # atrás da proteção de deploy da Vercel — responde 302 para a tela de
+          # SSO, o fetch segue o redirect e recebe HTML com HTTP 200. O smoke
+          # test reprovava com "resposta não-JSON" sem nunca ter tocado a
+          # geração de PDF. O domínio de produção é público, é estável e é o
+          # que os assessores usam de fato.
+          SMOKE_URL: https://usedipo.com.br
           PDF_HEALTH_TOKEN: ${{ secrets.PDF_HEALTH_TOKEN }}
         run: npx --yes tsx scripts/smoke-producao.ts
