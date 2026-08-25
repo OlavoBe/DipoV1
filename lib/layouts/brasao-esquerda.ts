@@ -54,6 +54,22 @@ const PT = {
 };
 
 const RECUO_MM = 12.7; // 0,5" — o padrão do Word
+
+/**
+ * Espaço livre acima da linha de assinatura, em pt.
+ *
+ * **Desvio deliberado do documento de referência.** O .docx do gabinete tem um
+ * único parágrafo vazio entre "Sala Alberto Santos Dumont, <data>." e a linha
+ * de assinatura — cerca de 22pt, que era o valor reproduzido aqui. Fiel, e
+ * impraticável: não sobra altura para a caneta, e a assinatura do vereador
+ * encosta na linha da data.
+ *
+ * Os ~62pt (≈22mm) são espaço de escrita, não estética. Ao mexer, confira que
+ * o documento ainda cabe em uma página com `node tools/preview-a4.mjs` — a
+ * folga típica é de ~66mm, mas indicações longas usam parte dela e o gerador
+ * responde comprimindo a fonte.
+ */
+const ESPACO_ASSINATURA = 62;
 const NL = '\n';
 
 export const brasaoEsquerda: LayoutFn = (doc, t, opts) => {
@@ -181,7 +197,7 @@ body {
 }
 
 /* ── Assinatura ────────────────────────────── */
-.assinatura { text-align: center; margin-top: ${pt(22)}; break-inside: avoid; }
+.assinatura { text-align: center; margin-top: ${pt(ESPACO_ASSINATURA)}; break-inside: avoid; }
 .assinatura .linha {
   width: 78mm;
   border-top: 1px solid ${cor};
