@@ -1,5 +1,17 @@
 import type { Metadata } from 'next';
-import { Check } from 'lucide-react';
+import { Check, Clock } from 'lucide-react';
+import { TRIAL_MAX, TRIAL_JANELA_MS } from '@/lib/planos';
+import { CHECKOUT_SUSPENSO, CONTATO_SUPORTE } from '@/lib/checkout';
+
+/**
+ * O limite do Trial escrito por extenso, derivado das constantes.
+ *
+ * Esta página dizia "3 indicações por semana" enquanto o código fazia 5 a cada
+ * 3 horas, e a tela /plano dizia ainda outra coisa. Três números para o mesmo
+ * plano. Texto derivado não diverge.
+ */
+const TRIAL_HORAS = TRIAL_JANELA_MS / (60 * 60 * 1000);
+const LIMITE_TRIAL = `${TRIAL_MAX} indicações a cada ${TRIAL_HORAS} horas`;
 
 export const metadata: Metadata = {
   title: 'Planos — Dipo',
@@ -8,6 +20,15 @@ export const metadata: Metadata = {
 
 // ─────────────────────────────────────────────
 // Dados dos planos
+//
+// Regra desta tela: `features` lista SÓ o que funciona hoje. O que ainda não
+// existe vai em `planejado`, marcado como tal — nunca misturado com um ✓.
+//
+// Antes disto, a página prometia "Relatórios e estatísticas", "Administração
+// centralizada", "Integração com sistema da câmara", "Múltiplos usuários por
+// gabinete" e "Múltiplos templates por vereador". Nenhum existe no código: não
+// há rota, tela nem modelo para relatório, convite de usuário ou integração.
+// Eram promessas cobradas a R$ 97 e R$ 197.
 // ─────────────────────────────────────────────
 
 const PLANOS = [
@@ -21,9 +42,15 @@ const PLANOS = [
       'Indicações ilimitadas',
       'Geração por IA com extração automática',
       'Download em PDF e Word',
-      'Histórico completo',
-      'Template personalizável',
+      // "Histórico completo" era exagero: a listagem devolve as 50 mais recentes.
+      'Histórico das 50 indicações mais recentes',
+      'Papel timbrado do gabinete no PDF',
       'Suporte por e-mail',
+    ],
+    planejado: [
+      // O template existe e é aplicado, mas quem edita é a gente, por script.
+      // Enquanto não houver editor na tela, isto não é entrega do plano.
+      'Editor de template dentro do app',
     ],
   },
   {
@@ -34,11 +61,13 @@ const PLANOS = [
     destaque: true,
     features: [
       'Tudo do Pro Assessor',
+      'Prioridade no suporte',
+      'Onboarding personalizado',
+    ],
+    planejado: [
       'Múltiplos usuários por gabinete',
       'Múltiplos templates por vereador',
       'Relatórios e estatísticas',
-      'Prioridade no suporte',
-      'Onboarding personalizado',
     ],
   },
   {
@@ -49,11 +78,13 @@ const PLANOS = [
     destaque: false,
     features: [
       'Tudo do Pro Gabinete',
+      'Preço sob consulta',
+    ],
+    planejado: [
       'Número ilimitado de vereadores',
       'Administração centralizada',
-      'Integração com sistema da câmara',
+      'Integração com o sistema da câmara',
       'SLA e suporte dedicado',
-      'Preço sob consulta',
     ],
   },
 ] as const;
@@ -67,6 +98,7 @@ function PlanCard({
   preco,
   descricao,
   features,
+  planejado,
   destaque,
 }: (typeof PLANOS)[number]) {
   return (
@@ -105,6 +137,23 @@ function PlanCard({
             {f}
           </li>
         ))}
+
+        {/* O que ainda não existe fica visualmente separado do que existe:
+            cinza, sem ✓ e sob um rótulo explícito. Um item planejado não pode
+            ser confundido com entrega ao bater o olho na lista. */}
+        {planejado.length > 0 && (
+          <>
+            <li className="pt-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+              Em desenvolvimento
+            </li>
+            {planejado.map((f) => (
+              <li key={f} className="flex items-start gap-2.5 text-sm text-gray-400">
+                <Clock className="h-4 w-4 shrink-0 mt-0.5" />
+                {f}
+              </li>
+            ))}
+          </>
+        )}
       </ul>
 
       <a
@@ -115,7 +164,9 @@ function PlanCard({
             : 'bg-gray-900 text-white hover:bg-gray-800'
         }`}
       >
-        {preco !== null ? 'Criar conta e assinar' : 'Entrar em contato'}
+        {/* Não convida a assinar enquanto o checkout está suspenso — ver
+            lib/checkout.ts. Criar conta continua valendo: o Trial funciona. */}
+        {preco === null || CHECKOUT_SUSPENSO ? 'Criar conta grátis' : 'Criar conta e assinar'}
       </a>
     </div>
   );
@@ -149,12 +200,25 @@ export default function PlanosPage() {
           ))}
         </div>
 
+        {/* Assinatura suspensa: os preços seguem visíveis como referência, mas
+            a página não pode sugerir que dá para contratar hoje. */}
+        {CHECKOUT_SUSPENSO && (
+          <div className="rounded-2xl bg-amber-50 border border-amber-200 p-5 text-sm text-amber-900 text-center">
+            Os planos pagos ainda não estão abertos para contratação — estamos
+            preparando a cobrança recorrente. Para entrar na fila, escreva para{' '}
+            <a href={`mailto:${CONTATO_SUPORTE}`} className="font-semibold underline">
+              {CONTATO_SUPORTE}
+            </a>
+            .
+          </div>
+        )}
+
         {/* Trial callout */}
         <div className="rounded-2xl bg-white border border-gray-200 p-7 flex flex-col sm:flex-row items-center justify-between gap-6">
           <div>
             <p className="font-semibold text-gray-900">Comece com o plano Trial gratuito</p>
             <p className="text-sm text-gray-500 mt-0.5">
-              3 indicações por semana, sem precisar de cartão de crédito.
+              {LIMITE_TRIAL}, sem precisar de cartão de crédito.
             </p>
           </div>
           <a
