@@ -142,6 +142,43 @@ async function getBrowser(): Promise<Browser> {
   return browserPromise;
 }
 
+/**
+ * Abre uma página, relançando o browser quando o reaproveitado está morto.
+ *
+ * `isConnected()` mente: devolve `true` para um browser que já não aceita
+ * `newPage()`. Medido em produção — metade das requisições voltava com
+ * "Target page, context or browser has been closed", sempre alternando entre as
+ * instâncias quentes. O `newPage()` ficava fora do `try`, então o browser morto
+ * nunca era descartado e aquela instância respondia 500 até a Vercel reciclá-la.
+ *
+ * Quem decide é o `newPage()`, não o `isConnected()`. As dependências entram por
+ * parâmetro para que a política de retentativa possa ser testada sem browser.
+ */
+export async function abrirPaginaResiliente<P>(
+  obterBrowser: () => Promise<{ newPage: () => Promise<P> }>,
+  descartar: () => void,
+): Promise<P> {
+  try {
+    return await (await obterBrowser()).newPage();
+  } catch (err) {
+    // Cache podre: descarta e tenta uma vez com um browser novo, em vez de
+    // devolver 500 para o assessor.
+    descartar();
+    console.warn(
+      '[pdf] browser reaproveitado não abriu página, relançando:',
+      err instanceof Error ? err.message : err,
+    );
+
+    try {
+      return await (await obterBrowser()).newPage();
+    } catch (erroComBrowserNovo) {
+      // Falhou até com um browser recém-lançado — não deixa o novo em cache.
+      descartar();
+      throw erroComBrowserNovo;
+    }
+  }
+}
+
 function descartarBrowser(): void {
   const p = browserPromise;
   browserPromise = null;
@@ -308,8 +345,7 @@ ${buildFontFaceCss()}
 // ─────────────────────────────────────────────
 
 async function generatePdfInternal(textoFinal: string, t: ReturnType<typeof getTemplate> extends Promise<infer R> ? R : never, demo: boolean): Promise<Buffer> {
-  const browser = await getBrowser();
-  const page = await browser.newPage();
+  const page = await abrirPaginaResiliente(getBrowser, descartarBrowser);
 
   try {
     let pdfBuffer: Buffer | null = null;
