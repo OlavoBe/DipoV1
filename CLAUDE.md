@@ -146,8 +146,18 @@ app/api/test-login/route.ts      ← endpoint que cria a sessão no banco
 - **Os testes locais NÃO cobrem o caminho de produção do PDF.** `lib/pdf.ts` tem
   dois ramos: serverless (`@sparticuz/chromium`) e local (`playwright`). Tudo o
   que roda na máquina exercita só o segundo. Um PDF quebrado em produção já
-  sobreviveu a 184 testes e a um CI verde. Ao mexer no ramo serverless, valide
-  no deploy — `/api/demo` é público e gera PDF pelo mesmo caminho.
+  sobreviveu a 184 testes e a um CI verde. Ao mexer no ramo serverless, rode o
+  smoke test contra o deploy (`npm run smoke`, ver docs/estado-do-projeto.md).
+- **As chaves do `outputFileTracingIncludes` são globs.** `'/api/pdf/[id]'`
+  parece o nome da rota, mas `[id]` é classe de caracteres e nunca casa com ela
+  — o Chromium ficava fora do bundle e a produção baixava 66MB do GitHub a cada
+  cold start, respondendo 200 o tempo todo. Use `'/api/pdf/**'` e confira no
+  manifesto (`.next/server/app/<rota>/route.js.nft.json`), não na saída do
+  build: o build passa dos dois jeitos. `npm run verify:bundle` faz isso e roda
+  no CI.
+- **Ao verificar uma correção, verifique pela rota que o usuário usa.** A
+  geração de PDF foi dada como consertada depois de um teste por `/api/demo` —
+  a única rota que estava certa. A rota real (`/api/pdf/[id]`) seguiu quebrada.
 - **Layout novo só entra com `layoutId` no template.** Sem ele o gerador segue
   no HTML legado. É o que protege os gabinetes que ainda não foram calibrados —
   não remova essa condição.
