@@ -26,3 +26,11 @@ export const CHECKOUT_SUSPENSO = true;
 /** Mensagem única, usada pela API e pela tela — para não divergirem. */
 export const MOTIVO_SUSPENSAO =
   'A assinatura está temporariamente indisponível enquanto preparamos a cobrança recorrente. Nenhuma cobrança será feita.';
+
+/**
+ * Contato para quem quiser o plano pago enquanto o checkout está suspenso.
+ *
+ * Vale um canal humano justamente agora: sem ele, a tela só diz "não dá" e o
+ * interesse de quem chegou ali se perde sem deixar rastro.
+ */
+export const CONTATO_SUPORTE = 'noctsolution@gmail.com';

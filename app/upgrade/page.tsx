@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CHECKOUT_SUSPENSO, MOTIVO_SUSPENSAO } from '@/lib/checkout';
+import { CHECKOUT_SUSPENSO, MOTIVO_SUSPENSAO, CONTATO_SUPORTE } from '@/lib/checkout';
 
 const PLANOS = [
   {
@@ -74,8 +74,15 @@ export default function UpgradePage() {
         </div>
 
         {CHECKOUT_SUSPENSO && (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-900 text-center">
-            {MOTIVO_SUSPENSAO}
+          <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-900 text-center space-y-1">
+            <p>{MOTIVO_SUSPENSAO}</p>
+            <p>
+              Quer o plano pago assim que abrir? Escreva para{' '}
+              <a href={`mailto:${CONTATO_SUPORTE}`} className="font-semibold underline">
+                {CONTATO_SUPORTE}
+              </a>
+              .
+            </p>
           </div>
         )}
 
