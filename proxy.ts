@@ -10,6 +10,9 @@ const PUBLIC_PREFIXES = [
   '/upgrade',
   '/test-login',
   '/api/test-login',
+  // Inerte sem PDF_HEALTH_TOKEN e protegida por token quando ativa — o smoke
+  // test pos-deploy precisa alcanca-la sem sessao.
+  '/api/health',
 ];
 
 export default function middleware(req: NextRequest) {

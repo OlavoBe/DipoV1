@@ -1,6 +1,6 @@
 # Estado do projeto — onde paramos
 
-Atualizado em **18/08/2026**, no commit `f7e8e4e`.
+Atualizado em **25/08/2026**.
 
 Documento de retomada: o que existe hoje, por que está assim, o que quebrou no
 caminho e o que ficou pendente. Leia junto com o [README](../README.md) (como
@@ -36,7 +36,7 @@ botão de copiar na tela de geração e no histórico.
 | Deploy | Vercel, `usedipo.com.br` |
 | Banco | PostgreSQL no Railway |
 | Migrations | Em dia (`prisma migrate status` limpo) |
-| Geração de PDF | **Funcionando** — verificado chamando `/api/demo` em produção |
+| Geração de PDF | **Funcionando**, e desde 25/08 com o Chromium vindo do bundle |
 | Testes | 184 passando |
 | CI | GitHub Actions verde |
 
@@ -97,6 +97,41 @@ O preview reporta a distância do brasão até a borda e avisa se algo sai da fo
 
 ---
 
+## Como a geração de PDF é verificada
+
+Três camadas, porque nenhuma delas cobre o que a seguinte cobre.
+
+| Camada | Onde roda | O que prova |
+|---|---|---|
+| 184 testes | máquina e CI | a lógica do gerador, pelo ramo do Playwright |
+| `verify:bundle` | CI, depois do build | que o Chromium viaja no bundle de cada rota que gera PDF |
+| Smoke pós-deploy | GitHub Actions, após o deploy | que o ramo serverless lança o Chromium e devolve um PDF |
+
+A camada do meio existe porque o build **passa** com o Chromium fora do bundle:
+a rota responde 200 e baixa o pack remoto. A de baixo existe porque nada que
+roda na máquina passa pelo ramo serverless.
+
+E as duas de baixo não se substituem. O smoke test bate em `/api/health/pdf`,
+que é uma função com bundle próprio — o verde dela não diz nada sobre o bundle
+de `/api/pdf/[id]`. Quem cobre isso é o `verify:bundle`.
+
+### Ligar o smoke test
+
+Ele fica inerte até o token existir nos dois lados:
+
+1. Gere um valor: `openssl rand -hex 32`
+2. Vercel → Settings → Environment Variables → `PDF_HEALTH_TOKEN` (Production)
+3. GitHub → Settings → Secrets and variables → Actions → `PDF_HEALTH_TOKEN`
+
+Sem o passo 2 a rota responde 404 e o smoke test reprova dizendo exatamente
+isso. Para rodar à mão contra produção:
+
+```bash
+SMOKE_URL=https://usedipo.com.br PDF_HEALTH_TOKEN=<token> npm run smoke
+```
+
+---
+
 ## Ferramentas de trabalho
 
 | Comando | Para quê |
@@ -106,6 +141,8 @@ O preview reporta a distância do brasão até a borda e avisa se algo sai da fo
 | `npx tsx scripts/preview-html.ts` | Exporta o HTML para inspeção |
 | `node tools/preview-a4.mjs <html> <png>` | Renderiza como folha A4, **com o recorte que o PDF aplica** |
 | `npm run verify:pdf` | Confere margens, páginas, fontes e tempo frio/quente |
+| `npm run verify:bundle` | Confere que o Chromium vai no bundle das rotas de PDF (roda no CI) |
+| `npm run smoke` | Smoke test contra um deploy; pede `SMOKE_URL` e `PDF_HEALTH_TOKEN` |
 | `npx tsx scripts/teste-tenant.ts <tenantId>` | Gera pelo caminho de produção (lê o template do banco) |
 | `npx tsx scripts/reproduz-pdf.ts` | Reproduz `/api/pdf` com a última indicação real |
 | `npx tsx scripts/aplicar-template.ts <tenantId>` | Ativa o template de um gabinete |
@@ -131,11 +168,20 @@ foi assim que o brasão cortado passou. `tools/preview-a4.mjs` já faz isso cert
 (`playwright`). Todo teste local exercita **só o segundo**. Foi por isso que o
 PDF quebrado em produção sobreviveu a 184 testes e a um CI verde.
 
-**4. O deploy não aplica migrations.**
+**4. As chaves do `outputFileTracingIncludes` são globs, não caminhos.**
+`'/api/pdf/[id]'` parece o nome da rota, mas `[id]` ali é uma classe de
+caracteres: casa com `/api/pdf/i` e `/api/pdf/d`, nunca com a rota dinâmica.
+A declaração não pegava, o Chromium ficava fora do bundle e a produção baixava
+66MB do GitHub a cada cold start — silenciosamente, porque `lib/pdf.ts` cai na
+reserva e responde 200. Use `'/api/pdf/**'`. Confira sempre no manifesto
+(`.next/server/app/<rota>/route.js.nft.json`), nunca na saída do build: o build
+passa dos dois jeitos. É o que `npm run verify:bundle` faz.
+
+**5. O deploy não aplica migrations.**
 `npm run build` é só `prisma generate && next build`. Toda migration precisa ser
 aplicada à mão, **antes** de o código que a usa chegar em produção.
 
-**5. Os PDFs do SISCAM são digitalizações.**
+**6. Os PDFs do SISCAM são digitalizações.**
 Sem fonte embarcada, sem camada de texto (CCITTFax, ~200 DPI). Não servem como
 referência de fidelidade — a referência é o documento que o gabinete gera.
 
@@ -145,32 +191,13 @@ referência de fidelidade — a referência é o documento que o gabinete gera.
 
 Em ordem do que eu atacaria primeiro.
 
-### 1. Tirar o GitHub do cold start do PDF (alta)
-
-`resolverChromium()` tenta o binário embarcado e, se faltar, baixa um pack de
-66 MB do GitHub. **Não se sabe por qual caminho está funcionando hoje** — dá para
-descobrir nos logs da função: se aparecer `[pdf] binário local do Chromium
-indisponível`, é o download.
-
-Se for o download, cada cold start busca 66 MB num domínio de terceiro. O caminho
-limpo é hospedar o pack (Vercel Blob, S3) e apontar `CHROMIUM_EXECUTABLE_PATH`
-para ele — a variável já tem precedência no código.
-
-Foi essa dependência que quebrou a geração de PDF em produção (URL apontava para
-uma versão inexistente e sem sufixo de arquitetura).
-
-### 2. Smoke test pós-deploy (alta)
-
-Nada verifica o ramo serverless. Um teste que chame `/api/demo` no deploy e
-confirme `application/pdf` teria pegado a quebra antes de você. É barato.
-
-### 3. Vulnerabilidade no `@auth/core` (alta)
+### 1. Vulnerabilidade no `@auth/core` (alta)
 
 `npm audit` reporta crítica: bypass por homoglyph na normalização de e-mail. O
 login é magic link por e-mail, então é o fluxo afetado. Não foi mexido porque
 atualizar `next-auth` beta pede janela dedicada e teste do login.
 
-### 4. Etapas 6, 7 e 8 do guia de PDF (média)
+### 2. Etapas 6, 7 e 8 do guia de PDF (média)
 
 - **6 — diff visual:** a referência já está versionada; falta o script de
   comparação e o limiar como teste de regressão.
@@ -180,13 +207,13 @@ atualizar `next-auth` beta pede janela dedicada e teste do login.
   por conta própria. No DOCX pode-se citar as fontes originais pelo nome — só o
   PDF precisa das substitutas livres (ver [docs/fontes.md](fontes.md)).
 
-### 5. Editor de template dentro do app (média)
+### 3. Editor de template dentro do app (média)
 
 `public/editor.html` são 1.078 linhas de HTML fora do React e do build. A tela de
 Configurações não mostra nem permite editar o template. Foi um dos pontos que
 você notou faltando na interface.
 
-### 6. Migrations perdidas (baixa, informativo)
+### 4. Migrations perdidas (baixa, informativo)
 
 O banco tem 7 migrations registradas que não existem no repositório — criadas
 quando o `.gitignore` ainda escondia `prisma/migrations/`. A baseline `0_init`

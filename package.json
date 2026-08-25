@@ -18,6 +18,8 @@
     "test:e2e:ui": "playwright test --ui",
     "seed:beta": "npx tsx scripts/seed-beta.ts",
     "verify:pdf": "npx tsx scripts/verifica-pdf.ts",
+    "verify:bundle": "npx tsx scripts/verifica-bundle-pdf.ts",
+    "smoke": "npx tsx scripts/smoke-producao.ts",
     "build:fonts": "npx tsx scripts/build-fonts.ts"
   },
   "dependencies": {
