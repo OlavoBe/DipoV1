@@ -1,0 +1,48 @@
+# Smoke test pós-deploy.
+#
+# O CI verifica o que dá para verificar na máquina. Este workflow verifica o que
+# só existe depois do deploy: que o ramo serverless de lib/pdf.ts realmente
+# lança o Chromium e devolve um PDF.
+#
+# Motivo de existir: os 184 testes e o build exercitam apenas o ramo local
+# (playwright). Um PDF quebrado em produção já sobreviveu a todos eles com o CI
+# verde, e a quebra foi descoberta pelo usuário.
+#
+# Requer o secret PDF_HEALTH_TOKEN no repositório, com o mesmo valor da variável
+# de ambiente PDF_HEALTH_TOKEN na Vercel. Sem ela a rota de health responde 404
+# e o smoke test reprova dizendo isso.
+name: Smoke pós-deploy
+
+on:
+  # A Vercel cria deployments no GitHub e reporta o status por aqui.
+  deployment_status:
+
+jobs:
+  smoke:
+    name: Geração de PDF no deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    # Cada deploy emite vários deployment_status (pending, in_progress...).
+    # Só o sucesso em produção interessa: os previews da Vercel ficam atrás da
+    # proteção de deploy e responderiam 401 ao smoke test.
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment_status.environment == 'Production'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Sem `npm ci`: o script não importa nada do projeto, só usa fetch.
+      # Instalar 600 pacotes para um GET seria trocar 20s por 2min.
+      - name: Smoke test
+        env:
+          SMOKE_URL: ${{ github.event.deployment_status.environment_url }}
+          PDF_HEALTH_TOKEN: ${{ secrets.PDF_HEALTH_TOKEN }}
+        run: npx --yes tsx scripts/smoke-producao.ts
