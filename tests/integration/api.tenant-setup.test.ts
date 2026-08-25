@@ -9,13 +9,14 @@
  *  5. Sem sessão → 401
  *  6. complete=true → chama user.update com onboardingComplete
  *  7. Slug genérico sem tenant → cria TRIAL e vincula
- *  8. Slug beta sem tenant, beta pré-existente sem users → vincula ao beta existente (plano BETA)
- *  9. Slug beta sem tenant, beta pré-existente com users → cria novo BETA
- * 10. Slug beta sem tenant, sem beta pré-existente → cria novo BETA
+ *  8. Slug beta, e-mail autorizado, beta pré-existente sem users → vincula ao beta (plano BETA)
+ *  9. Slug beta, e-mail autorizado, beta pré-existente com users → cria novo BETA
+ * 10. Slug beta, e-mail autorizado, sem beta pré-existente → cria novo BETA
+ * 11. Slug beta, e-mail NÃO autorizado → tenant próprio em TRIAL, sem tocar no beta
  */
 
 import { testApiHandler } from 'next-test-api-route-handler';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as handler from '@/app/api/tenant/setup/route';
 
 // ─── Mocks ─────────────────────────────────────────────────────────────────
@@ -52,14 +53,28 @@ const SESSION_SEM_TENANT = {
   user: { id: 'user-2', tenantId: null, name: 'New', email: 'new@b.com' },
 };
 
+/**
+ * O plano BETA depende de BETA_EMAILS, não do slug escolhido no dropdown.
+ * Os cenários 8-10 representam um assessor autorizado; o 11, alguém que apenas
+ * escolheu um vereador beta na tela — que era o buraco.
+ */
+const BETA_EMAILS_ORIGINAL = process.env.BETA_EMAILS;
+
 const BETA_TENANT_VAZIO     = { id: 'beta-tenant-1', plano: 'BETA', _count: { users: 0 } };
 const BETA_TENANT_COM_USERS = { id: 'beta-tenant-2', plano: 'BETA', _count: { users: 1 } };
 
 // ─── Testes ──────────────────────────────────────────────────────────────────
 
 describe('PATCH /api/tenant/setup', () => {
+  afterEach(() => {
+    if (BETA_EMAILS_ORIGINAL === undefined) delete process.env.BETA_EMAILS;
+    else process.env.BETA_EMAILS = BETA_EMAILS_ORIGINAL;
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
+    // SESSION_SEM_TENANT usa new@b.com — autorizado por padrão nos cenários beta.
+    process.env.BETA_EMAILS = 'new@b.com';
     (auth as ReturnType<typeof vi.fn>).mockResolvedValue(SESSION_COM_TENANT);
     (prisma.tenant.update    as ReturnType<typeof vi.fn>).mockResolvedValue({});
     (prisma.tenant.create    as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'tenant-new' });
@@ -207,7 +222,7 @@ describe('PATCH /api/tenant/setup', () => {
     });
   });
 
-  it('slug beta sem tenant, beta pré-existente sem users → vincula ao beta existente', async () => {
+  it('slug beta + e-mail autorizado, beta pré-existente sem users → vincula ao beta existente', async () => {
     (auth as ReturnType<typeof vi.fn>).mockResolvedValue(SESSION_SEM_TENANT);
     (prisma.tenant.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(BETA_TENANT_VAZIO);
 
@@ -240,7 +255,7 @@ describe('PATCH /api/tenant/setup', () => {
     });
   });
 
-  it('slug beta sem tenant, beta pré-existente com users → cria novo tenant BETA', async () => {
+  it('slug beta + e-mail autorizado, beta pré-existente com users → cria novo tenant BETA', async () => {
     (auth as ReturnType<typeof vi.fn>).mockResolvedValue(SESSION_SEM_TENANT);
     (prisma.tenant.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(BETA_TENANT_COM_USERS);
 
@@ -269,7 +284,76 @@ describe('PATCH /api/tenant/setup', () => {
     });
   });
 
-  it('slug beta sem tenant, sem beta pré-existente → cria novo tenant BETA', async () => {
+  /**
+   * O buraco que esta trava fechou.
+   *
+   * O dropdown do onboarding lista os 4 vereadores beta pelo nome, então
+   * escolher um deles nunca provou nada. Antes, qualquer cadastro que
+   * selecionasse "Valdemir" recebia plano BETA — ilimitado, sem prazo — e podia
+   * ser vinculado ao tenant daquele gabinete, encostando nos dados dele.
+   *
+   * Agora o e-mail não autorizado recebe tenant PRÓPRIO em TRIAL, e o tenant
+   * beta não é sequer consultado.
+   */
+  it('slug beta + e-mail NÃO autorizado → tenant próprio em TRIAL, sem tocar no beta', async () => {
+    process.env.BETA_EMAILS = 'outra-pessoa@gabinete.com';
+    (auth as ReturnType<typeof vi.fn>).mockResolvedValue(SESSION_SEM_TENANT);
+    (prisma.tenant.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(BETA_TENANT_VAZIO);
+
+    await testApiHandler({
+      appHandler: handler,
+      async test({ fetch }) {
+        const res = await fetch({
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            vereadorSlug: 'valdemir',
+            nomeVereador: 'Valdemir',
+            nomeAssessor: 'Desconhecido',
+          }),
+        });
+        expect(res.status).toBe(200);
+
+        // Tenant próprio, em TRIAL
+        expect(prisma.tenant.create as ReturnType<typeof vi.fn>).toHaveBeenCalledOnce();
+        const createCall = (prisma.tenant.create as ReturnType<typeof vi.fn>).mock.calls[0];
+        expect(createCall[0].data.plano).toBe('TRIAL');
+
+        // O tenant do gabinete beta não pode ser tocado nem consultado
+        expect(prisma.tenant.findFirst as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+        expect(prisma.tenant.update as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+
+        const userCall = (prisma.user.update as ReturnType<typeof vi.fn>).mock.calls[0];
+        expect(userCall[0].data.tenantId).toBe('tenant-new');
+      },
+    });
+  });
+
+  it('sem BETA_EMAILS configurado, slug beta cai em TRIAL — padrão fechado', async () => {
+    delete process.env.BETA_EMAILS;
+    (auth as ReturnType<typeof vi.fn>).mockResolvedValue(SESSION_SEM_TENANT);
+
+    await testApiHandler({
+      appHandler: handler,
+      async test({ fetch }) {
+        const res = await fetch({
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            vereadorSlug: 'marcio_pet',
+            nomeVereador: 'Márcio',
+            nomeAssessor: 'Alguém',
+          }),
+        });
+        expect(res.status).toBe(200);
+
+        const createCall = (prisma.tenant.create as ReturnType<typeof vi.fn>).mock.calls[0];
+        expect(createCall[0].data.plano).toBe('TRIAL');
+      },
+    });
+  });
+
+  it('slug beta + e-mail autorizado, sem beta pré-existente → cria novo tenant BETA', async () => {
     (auth as ReturnType<typeof vi.fn>).mockResolvedValue(SESSION_SEM_TENANT);
     (prisma.tenant.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
