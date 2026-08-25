@@ -27,10 +27,20 @@ export async function GET() {
         numero: true,
         cep: true,
         textoFinal: true,
+        // Autor. `null` nas indicações anteriores ao campo — o histórico
+        // precisa saber a diferença entre "não registrado" e "sem autor".
+        user: { select: { nome: true, name: true, email: true } },
       },
     });
 
-    return NextResponse.json({ items });
+    // Achata o autor num rótulo só, com precedência nome do sistema → nome do
+    // provedor → e-mail. Sem inventar nada quando não há autor registrado.
+    const comAutor = items.map(({ user, ...item }) => ({
+      ...item,
+      autor: user ? (user.nome ?? user.name ?? user.email) : null,
+    }));
+
+    return NextResponse.json({ items: comAutor });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erro interno';
     console.error('[API /historico] Erro:', err);

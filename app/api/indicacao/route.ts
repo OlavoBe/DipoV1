@@ -98,6 +98,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         numero:        extracted.numero     || null,
         cep:           extracted.cep        || null,
         tenantId,
+        // Autoria. O usageLog já registrava quem gerou, mas ele é um log de
+        // uso: rotativo por natureza e desacoplado do documento. Quem produziu
+        // uma indicação é atributo dela, e precisa sobreviver junto dela.
+        userId:        session.user.id,
       },
     });
 

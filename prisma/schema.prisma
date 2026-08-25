@@ -76,6 +76,15 @@ model Indicacao {
 
   tenantId      String
   tenant        Tenant   @relation(fields: [tenantId], references: [id])
+
+  // Autoria: qual assessor produziu esta indicação.
+  //
+  // Opcional por dois motivos, não por descuido. As indicações anteriores a
+  // este campo não têm autor e nunca terão — não há de onde inferir. E se o
+  // assessor for removido, o documento continua sendo do gabinete, então o
+  // vínculo cai para NULL (onDelete: SetNull) em vez de apagar a indicação.
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
 // ─────────────────────────────────────────────
@@ -138,6 +147,7 @@ model User {
 
   accounts      Account[]
   sessions      Session[]
+  indicacoes    Indicacao[]
 }
 
 // ─────────────────────────────────────────────
