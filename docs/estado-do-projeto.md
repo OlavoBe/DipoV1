@@ -181,7 +181,15 @@ passa dos dois jeitos. É o que `npm run verify:bundle` faz.
 `npm run build` é só `prisma generate && next build`. Toda migration precisa ser
 aplicada à mão, **antes** de o código que a usa chegar em produção.
 
-**6. Os PDFs do SISCAM são digitalizações.**
+**6. `browser.isConnected()` mente.**
+Ele devolve `true` para um browser que já não aceita `newPage()`. Com o browser
+reaproveitado entre invocações, uma instância quente podia ficar com um browser
+morto em cache e responder 500 até a Vercel reciclá-la — metade das requisições,
+alternando entre as instâncias. Quem decide se o browser serve é o `newPage()`;
+por isso ele mora dentro do `try` e existe uma retentativa com browser novo.
+Descoberto pelo smoke test na primeira vez que rodou duas vezes seguidas.
+
+**7. Os PDFs do SISCAM são digitalizações.**
 Sem fonte embarcada, sem camada de texto (CCITTFax, ~200 DPI). Não servem como
 referência de fidelidade — a referência é o documento que o gabinete gera.
 
