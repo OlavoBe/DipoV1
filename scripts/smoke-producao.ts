@@ -29,11 +29,19 @@ interface Resposta {
   erro?: string;
 }
 
+/**
+ * Falha esperada do smoke test, com mensagem já pronta para o log.
+ *
+ * O script usava `process.exit()` direto. Encerrar com sockets do fetch ainda
+ * abertos derrubava o processo no Windows (`UV_HANDLE_CLOSING`) e o `npm run
+ * smoke` saía com 127 mesmo quando o PDF tinha sido gerado. Um check que
+ * reprova deploy saudável vira ruído e acaba ignorado, então o encerramento
+ * agora é por `process.exitCode`, deixando o Node fechar o que abriu.
+ */
+class FalhaSmoke extends Error {}
+
 function exigir(nome: string, valor: string | undefined): string {
-  if (!valor) {
-    console.error(`✗ ${nome} não definido.`);
-    process.exit(1);
-  }
+  if (!valor) throw new FalhaSmoke(`${nome} não definido.`);
   return valor;
 }
 
@@ -53,21 +61,18 @@ async function main(): Promise<void> {
       signal: AbortSignal.timeout(70_000),
     });
   } catch (err) {
-    console.error(`✗ requisição falhou: ${err instanceof Error ? err.message : err}`);
-    process.exit(1);
+    throw new FalhaSmoke(`requisição falhou: ${err instanceof Error ? err.message : err}`);
   }
 
   const decorrido = Date.now() - inicio;
 
   if (res.status === 404) {
-    console.error('✗ 404 — PDF_HEALTH_TOKEN não está definido no ambiente do deploy.');
     console.error('  A rota fica inerte sem ele. Defina a variável na Vercel.');
-    process.exit(1);
+    throw new FalhaSmoke('404 — PDF_HEALTH_TOKEN não está definido no ambiente do deploy.');
   }
 
   if (res.status === 401) {
-    console.error('✗ 401 — o token daqui não bate com o do deploy.');
-    process.exit(1);
+    throw new FalhaSmoke('401 — o token daqui não bate com o do deploy.');
   }
 
   // Ler como texto antes de parsear: um "não é JSON" sem mostrar o que veio
@@ -94,14 +99,13 @@ async function main(): Promise<void> {
     }
 
     console.error(`  início do corpo: ${texto.slice(0, 200).replace(/s+/g, ' ')}`);
-    process.exit(1);
+    throw new FalhaSmoke('resposta inesperada do servidor.');
   }
 
   if (!res.ok || !corpo.ok) {
-    console.error(`✗ geração de PDF falhou (HTTP ${res.status}).`);
     if (corpo.erro) console.error(`  ${corpo.erro}`);
     if (corpo.origemChromium) console.error(`  origem do Chromium: ${corpo.origemChromium}`);
-    process.exit(1);
+    throw new FalhaSmoke(`geração de PDF falhou (HTTP ${res.status}).`);
   }
 
   console.log(`✓ PDF gerado — ${corpo.bytes} bytes em ${corpo.ms}ms (${decorrido}ms na ponta)`);
@@ -125,7 +129,11 @@ async function main(): Promise<void> {
     falhou = true;
   }
 
-  process.exit(falhou ? 1 : 0);
+  if (falhou) throw new FalhaSmoke('deploy reprovado nas verificações acima.');
 }
 
-main();
+main().catch((err: unknown) => {
+  console.error(`✗ ${err instanceof FalhaSmoke ? err.message : err}`);
+  // exitCode em vez de exit(): deixa o Node encerrar os sockets do fetch.
+  process.exitCode = 1;
+});
