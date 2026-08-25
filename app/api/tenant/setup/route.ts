@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { auth } from '@/auth';
 import { getVereadorOption } from '@/lib/vereadores-options';
 import { isVereadorBeta } from '@/lib/vereadores';
+import { emailAutorizadoBeta } from '@/lib/beta-allowlist';
 
 function json(body: unknown, status = 200) {
   return NextResponse.json(body, { status });
@@ -69,7 +70,13 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
           where: { id: existingTenantId },
           data:  tenantData,
         });
-      } else if (isVereadorBeta(slug)) {
+      } else if (isVereadorBeta(slug) && emailAutorizadoBeta(session.user.email)) {
+        // Slug beta E e-mail autorizado. As duas condições importam: o dropdown
+        // do onboarding mostra os vereadores beta pelo nome, então só o slug
+        // nunca foi prova de nada — qualquer pessoa podia escolher um deles e
+        // receber plano ilimitado, ou ser vinculada ao tenant do gabinete.
+        // Sem autorização o fluxo cai no ramo TRIAL, com tenant próprio.
+        //
         // Slug beta sem tenant próprio: tenta vincular ao tenant beta pré-criado
         // (apenas se ele ainda não tiver assessores vinculados)
         const betaTenant = await prisma.tenant.findFirst({
@@ -98,7 +105,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
           });
         }
       } else {
-        // Slug genérico → cria novo tenant com plano TRIAL
+        // Slug genérico, ou slug beta sem autorização → tenant próprio em TRIAL
         const tenant = await prisma.tenant.create({
           data: { ...tenantData, plano: 'TRIAL' },
         });
