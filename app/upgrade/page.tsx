@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { CHECKOUT_SUSPENSO, MOTIVO_SUSPENSAO } from '@/lib/checkout';
 
 const PLANOS = [
   {
@@ -72,6 +73,12 @@ export default function UpgradePage() {
           </p>
         </div>
 
+        {CHECKOUT_SUSPENSO && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-900 text-center">
+            {MOTIVO_SUSPENSAO}
+          </div>
+        )}
+
         <div role="alert" aria-live="assertive">
           {erro && (
             <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700 text-center">
@@ -102,7 +109,11 @@ export default function UpgradePage() {
                   <span className="text-4xl font-extrabold text-gray-900">
                     R$&nbsp;{p.preco}
                   </span>
-                  <span className="text-gray-500 mb-1">/mês</span>
+                  {/* Sem "/mês" enquanto a cobrança for avulsa: o preço mensal
+                      era a promessa que o código não cumpria. */}
+                  <span className="text-gray-500 mb-1">
+                    {CHECKOUT_SUSPENSO ? 'por mês (em breve)' : '/mês'}
+                  </span>
                 </div>
               </div>
 
@@ -117,17 +128,26 @@ export default function UpgradePage() {
 
               <button
                 onClick={() => handleAssinar(p.id)}
-                disabled={loading !== null}
-                className={p.destaque ? 'btn-primary w-full' : 'btn-secondary w-full !bg-gray-900 !text-white hover:!bg-gray-800 !border-gray-900'}
+                disabled={CHECKOUT_SUSPENSO || loading !== null}
+                className={
+                  (p.destaque ? 'btn-primary w-full' : 'btn-secondary w-full !bg-gray-900 !text-white hover:!bg-gray-800 !border-gray-900') +
+                  (CHECKOUT_SUSPENSO ? ' opacity-50 cursor-not-allowed' : '')
+                }
               >
-                {loading === p.id ? 'Redirecionando...' : 'Assinar agora'}
+                {CHECKOUT_SUSPENSO
+                  ? 'Indisponível no momento'
+                  : loading === p.id
+                    ? 'Redirecionando...'
+                    : 'Assinar agora'}
               </button>
             </div>
           ))}
         </div>
 
         <p className="text-center text-xs text-gray-400">
-          Pagamento seguro via Mercado Pago. Cancele quando quiser.
+          {CHECKOUT_SUSPENSO
+            ? 'Nenhuma cobrança será feita enquanto a assinatura estiver indisponível.'
+            : 'Pagamento seguro via Mercado Pago. Cancele quando quiser.'}
         </p>
       </div>
     </div>
