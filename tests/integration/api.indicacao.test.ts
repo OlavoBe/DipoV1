@@ -130,6 +130,30 @@ describe('POST /api/indicacao', () => {
     });
   });
 
+  /**
+   * Autoria. O usageLog já registrava quem gerou, mas ele é um log de uso —
+   * rotativo por natureza e desacoplado do documento. Quem produziu uma
+   * indicação é atributo dela e precisa sobreviver junto dela.
+   */
+  it('grava o usuário que produziu a indicação', async () => {
+    await testApiHandler({
+      appHandler: handler,
+      async test({ fetch }) {
+        const res = await fetch({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ texto: TEXTO_VALIDO }),
+        });
+        expect(res.status).toBe(200);
+
+        const createCall = (prisma.indicacao.create as ReturnType<typeof vi.fn>).mock.calls[0];
+        expect(createCall[0].data.userId).toBe('user-1');
+        // O tenant continua sendo gravado: autoria não substitui isolamento.
+        expect(createCall[0].data.tenantId).toBe('tenant-1');
+      },
+    });
+  });
+
   it('texto muito curto → 400', async () => {
     await testApiHandler({
       appHandler: handler,
