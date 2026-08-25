@@ -14,9 +14,17 @@ const nextConfig = {
   //
   // Declarado so nas duas rotas que geram PDF, para nao carregar ~66MB em
   // todas as funcoes.
+  //
+  // ATENCAO: as chaves sao GLOBS, nao caminhos literais. `/api/pdf/[id]` casa
+  // com `/api/pdf/i` e `/api/pdf/d` (classe de caracteres), nunca com a rota
+  // dinamica real — os binarios ficavam de fora e a producao caia no download
+  // de 66MB do GitHub a cada cold start. Por isso `**` em vez do segmento.
+  // Confira o resultado no manifesto, nao no build:
+  //   grep -c sparticuz '.next/server/app/api/pdf/[id]/route.js.nft.json'
   outputFileTracingIncludes: {
-    '/api/pdf/[id]': ['node_modules/@sparticuz/chromium/bin/**'],
+    '/api/pdf/**': ['node_modules/@sparticuz/chromium/bin/**'],
     '/api/demo': ['node_modules/@sparticuz/chromium/bin/**'],
+    '/api/health/**': ['node_modules/@sparticuz/chromium/bin/**'],
   },
   // Define o root do Turbopack para evitar aviso de workspace
   turbopack: {

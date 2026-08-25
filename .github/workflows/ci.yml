@@ -103,6 +103,12 @@ jobs:
       - name: Build de produção
         run: npm run build
 
+      # O build passa mesmo quando o Chromium fica de fora do bundle: a rota
+      # responde 200 e baixa 66MB do GitHub a cada cold start. Foi o estado real
+      # da produção por semanas. Esta checagem lê os manifestos de rastreamento.
+      - name: Verificar o Chromium no bundle das rotas de PDF
+        run: npm run verify:bundle
+
       # Informativo: não bloqueia o merge. Serve para a vulnerabilidade nova
       # aparecer no log em vez de só ser descoberta em auditoria manual.
       - name: Auditoria de dependências (informativo)

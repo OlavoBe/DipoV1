@@ -38,32 +38,63 @@ function resolverStack(fontFamily: string): string {
 const PACK_CHROMIUM_RESERVA =
   'https://github.com/Sparticuz/chromium/releases/download/v143.0.4/chromium-v143.0.4-pack.x64.tar';
 
+export type OrigemChromium =
+  | 'configurado'
+  | 'embarcado'
+  | 'pack-remoto'
+  | 'playwright-local';
+
+let origemChromium: OrigemChromium | null = null;
+
+/**
+ * De onde saiu o binário do Chromium nesta instância — `null` enquanto nenhum
+ * browser foi lançado.
+ *
+ * `embarcado` é o único caminho saudável em produção: o binário veio dentro do
+ * bundle da função. `pack-remoto` significa que o rastreamento de dependências
+ * falhou e cada cold start está baixando 66MB de um domínio de terceiro — foi o
+ * estado real da produção até o glob do `outputFileTracingIncludes` ser
+ * corrigido, e é o que o smoke test pós-deploy vigia.
+ */
+export function getOrigemChromium(): OrigemChromium | null {
+  return origemChromium;
+}
+
 /**
  * Resolve o executável do Chromium no ambiente serverless.
  *
- * Ordem: `CHROMIUM_EXECUTABLE_PATH` → binário embarcado no pacote → pack remoto.
+ * Ordem: `CHROMIUM_EXECUTABLE_PATH` → binário embarcado no bundle → pack remoto.
  *
- * O pacote `@sparticuz/chromium` traz o navegador em `bin/*.br`, mas esses
- * arquivos não são alcançáveis por `import`: o rastreamento de dependências do
- * Next não os inclui no bundle, a função sobe sem eles e o launch falha com
- * "The input directory .../bin does not exist". Daí a reserva por download.
+ * O `@sparticuz/chromium` traz o navegador em `bin/*.br`, arquivos que nenhum
+ * `import` alcança. Quem os coloca no bundle é o `outputFileTracingIncludes` do
+ * `next.config.js`; sem ele a função sobe sem o binário e o launch falha com
+ * "The input directory .../bin does not exist".
  *
- * Para tirar o GitHub do cold start de vez, hospede o pack e aponte
- * `CHROMIUM_EXECUTABLE_PATH` para ele.
+ * O download é só rede de segurança. Se ele disparar, o rastreamento quebrou e
+ * cada cold start passa a pagar 66MB num domínio de terceiro.
  */
 async function resolverChromium(
   chromium: { executablePath: (caminho?: string) => Promise<string> },
 ): Promise<string> {
   const configurado = process.env.CHROMIUM_EXECUTABLE_PATH;
-  if (configurado) return chromium.executablePath(configurado);
+  if (configurado) {
+    origemChromium = 'configurado';
+    return chromium.executablePath(configurado);
+  }
 
   try {
-    return await chromium.executablePath();
+    const caminho = await chromium.executablePath();
+    origemChromium = 'embarcado';
+    return caminho;
   } catch (err) {
-    console.warn(
-      '[pdf] binário local do Chromium indisponível, usando o pack remoto:',
+    // `error` e não `warn`: o download nunca deveria acontecer, e como aviso
+    // ele se escondeu entre os logs normais da produção.
+    console.error(
+      '[pdf] binário do Chromium não veio no bundle, baixando o pack remoto ' +
+        '(66MB a cada cold start) — confira o outputFileTracingIncludes:',
       err instanceof Error ? err.message : err,
     );
+    origemChromium = 'pack-remoto';
     return chromium.executablePath(PACK_CHROMIUM_RESERVA);
   }
 }
@@ -82,6 +113,7 @@ async function launchBrowser(): Promise<Browser> {
   }
   // Em dev/testes o playwright completo é devDependency; import dinâmico para
   // que o bundle de produção nunca tente resolvê-lo.
+  origemChromium = 'playwright-local';
   const { chromium: pw } = await import('playwright');
   return pw.launch({
     headless: true,
