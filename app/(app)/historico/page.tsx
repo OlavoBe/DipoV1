@@ -209,7 +209,7 @@ function IndicacaoCard({ item }: { item: IndicacaoItem }) {
 
   return (
     <div className="card p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-150">
-      <div className="flex items-start gap-3 flex-wrap sm:flex-nowrap">
+      <div className="flex items-start gap-3 flex-wrap">
 
         {/* Número sequencial */}
         <span className="text-xs font-mono text-gray-300 pt-0.5 w-7 shrink-0 text-right select-none">
@@ -217,7 +217,7 @@ function IndicacaoCard({ item }: { item: IndicacaoItem }) {
         </span>
 
         {/* Conteúdo */}
-        <div className="flex-1 min-w-0 space-y-1.5">
+        <div className="flex-1 min-w-[14rem] space-y-1.5">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-sm font-medium text-gray-900 truncate leading-snug">
               {item.assunto}
@@ -239,7 +239,7 @@ function IndicacaoCard({ item }: { item: IndicacaoItem }) {
         </div>
 
         {/* Ações */}
-        <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+        <div className="flex items-center gap-2 flex-wrap justify-end ml-auto">
           <FeedbackButtons id={item.id} initialFeedback={item.feedback} />
           <a
             href={`/api/pdf/${item.id}?inline=1`}
