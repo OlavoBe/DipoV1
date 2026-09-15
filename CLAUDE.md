@@ -168,10 +168,45 @@ app/api/test-login/route.ts      ← endpoint que cria a sessão no banco
 
 ---
 
-## Onde estamos
+## Protocolo de sessão
 
-Leia `docs/estado-do-projeto.md` ao retomar o trabalho: o que existe, o que já
-quebrou e por quê, e as pendências em ordem de prioridade.
+Este projeto é tocado de três computadores: o do trabalho, o de casa e o
+notebook. **O git é a única memória compartilhada entre eles.** Uma sessão que
+não escreve no repositório não existe para as outras máquinas.
+
+### Ao começar
+
+1. `git pull` antes de qualquer coisa. Sem isso você trabalha em cima de uma
+   versão velha e cria conflito.
+2. Leia `docs/estado-do-projeto.md`. Ele é a fonte da verdade sobre onde paramos,
+   e vale mais que a lembrança de quem está pedindo.
+3. Se o documento estiver com data antiga e o repositório tiver commits mais
+   novos que ele, desconfie: alguém encerrou sem atualizar. Já aconteceu — o
+   documento ficou três semanas dizendo que uma vulnerabilidade estava aberta
+   depois de ela ter sido corrigida.
+
+### Ao encerrar, sempre
+
+1. **Atualize `docs/estado-do-projeto.md`:**
+   - a data no topo;
+   - o que mudou nesta sessão e por quê;
+   - o que quebrou e como foi contornado — inclusive o que não deu certo;
+   - a lista de pendências, reordenada, com o que entrou e o que saiu.
+2. **Commit e push.** Documento atualizado que ficou na máquina não serve para
+   nada.
+
+Isso vale **mesmo quando a sessão não mudou código**. "Verifiquei X e está
+certo", "o item 3 já estava resolvido", "tentei Y e não funcionou por Z" são
+informações que poupam a próxima sessão — em geral valem mais que o código.
+
+### Quando a sessão mexeu nos dois sistemas
+
+O Dipo são três repositórios: este, o `dipoagenda` (bot de WhatsApp) e o
+`dipo-backups`. Cada um tem seu documento de estado, e cada um precisa do seu
+commit. O que atravessa os dois sistemas — infraestrutura, riscos de segurança,
+decisões de produto — vai no documento do sistema afetado, não só num deles.
+
+---
 
 ## Limites por plano (lib/planos.ts)
 
