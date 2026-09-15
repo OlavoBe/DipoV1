@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { abrirPaginaResiliente } from '@/lib/pdf';
+import { abrirPaginaResiliente, browserCaiu } from '@/lib/pdf';
 
 /**
  * O browser é reaproveitado entre invocações da mesma instância quente, e o
@@ -84,5 +84,21 @@ describe('abrirPaginaResiliente', () => {
     await expect(abrirPaginaResiliente(obter, vi.fn())).rejects.toThrow();
 
     expect(obter).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('browserCaiu', () => {
+  // Decide se vale gastar a segunda tentativa com um browser novo. Erro de
+  // conteúdo não pode entrar aqui: repetir só dobraria o tempo até o 500.
+  it('reconhece a queda do browser no meio da renderização', () => {
+    expect(
+      browserCaiu(new Error('page.setContent: Target page, context or browser has been closed\nCall log:')),
+    ).toBe(true);
+    expect(browserCaiu(new Error('page.pdf: Target crashed'))).toBe(true);
+  });
+
+  it('não confunde outros erros com queda do browser', () => {
+    expect(browserCaiu(new Error('page.setContent: Timeout 30000ms exceeded'))).toBe(false);
+    expect(browserCaiu(new Error('Indicação não encontrada'))).toBe(false);
   });
 });

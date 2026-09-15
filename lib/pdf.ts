@@ -2,7 +2,7 @@ import { getTemplate, type TemplateSettings } from './template';
 import { buildFontFaceCss, STACK_CORPO, STACK_CABECALHO } from './fonts';
 import { getLayout } from './layouts';
 import { parseTextoToDoc } from './doc-parser';
-import type { Browser } from 'playwright-core';
+import type { Browser, BrowserContext } from 'playwright-core';
 
 /**
  * Traduz a fonte configurada no template para uma pilha que prioriza a fonte
@@ -115,31 +115,58 @@ async function launchBrowser(): Promise<Browser> {
   // que o bundle de produção nunca tente resolvê-lo.
   origemChromium = 'playwright-local';
   const { chromium: pw } = await import('playwright');
+  // PDF_SIMULA_SERVERLESS=1 liga localmente as flags de processo que o
+  // @sparticuz/chromium usa em produção — sem elas, a máquina local não
+  // reproduz a queda do browser descrita em getContexto().
+  const simulaServerless = process.env.PDF_SIMULA_SERVERLESS === '1'
+    ? ['--single-process', '--no-zygote']
+    : [];
   return pw.launch({
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--font-render-hinting=none'],
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--font-render-hinting=none', ...simulaServerless],
   });
 }
 
 // ─────────────────────────────────────────────
-// Browser reaproveitado entre invocações da mesma instância quente.
+// Browser e contexto reaproveitados entre invocações da mesma instância quente.
 // O cold start paga o launch uma vez; as gerações seguintes reusam.
 // Em erro, descarta a instância para não herdar um browser quebrado.
 // ─────────────────────────────────────────────
 
-let browserPromise: Promise<Browser> | null = null;
+type Sessao = { browser: Browser; contexto: BrowserContext };
 
-async function getBrowser(): Promise<Browser> {
-  if (browserPromise) {
+let sessaoPromise: Promise<Sessao> | null = null;
+
+async function abrirSessao(): Promise<Sessao> {
+  const browser = await launchBrowser();
+  return { browser, contexto: await browser.newContext() };
+}
+
+/**
+ * Contexto único onde todas as páginas são abertas.
+ *
+ * O `@sparticuz/chromium` roda com `--single-process`, e nesse modo descartar
+ * um contexto derruba o browser inteiro. `browser.newPage()` cria um contexto
+ * novo por página e o fecha junto com ela — então o primeiro PDF de cada
+ * browser saía e o browser morria no `page.close()`. A geração seguinte
+ * naquela instância quebrava com "Target page, context or browser has been
+ * closed", no `newPage()` ou, se a queda ainda não tinha terminado, no
+ * `setContent()`.
+ *
+ * Reproduzido com PDF_SIMULA_SERVERLESS=1: com `browser.newPage()`, 1 de 9
+ * gerações passa; com um contexto fixo, 9 de 9, incluindo 3 simultâneas.
+ */
+async function getContexto(): Promise<BrowserContext> {
+  if (sessaoPromise) {
     try {
-      const b = await browserPromise;
-      if (b.isConnected()) return b;
+      const s = await sessaoPromise;
+      if (s.browser.isConnected()) return s.contexto;
     } catch {
       // cai no relaunch abaixo
     }
   }
-  browserPromise = launchBrowser();
-  return browserPromise;
+  sessaoPromise = abrirSessao();
+  return (await sessaoPromise).contexto;
 }
 
 /**
@@ -180,9 +207,15 @@ export async function abrirPaginaResiliente<P>(
 }
 
 function descartarBrowser(): void {
-  const p = browserPromise;
-  browserPromise = null;
-  void p?.then((b) => b.close()).catch(() => {});
+  const p = sessaoPromise;
+  sessaoPromise = null;
+  void p?.then((s) => s.browser.close()).catch(() => {});
+}
+
+/** Erro do Playwright quando o browser (ou a página) caiu no meio do uso. */
+export function browserCaiu(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /has been closed|Target closed|Browser closed|crashed/i.test(msg);
 }
 
 // ─────────────────────────────────────────────
@@ -344,8 +377,29 @@ ${buildFontFaceCss()}
 // Geração do PDF
 // ─────────────────────────────────────────────
 
-async function generatePdfInternal(textoFinal: string, t: ReturnType<typeof getTemplate> extends Promise<infer R> ? R : never, demo: boolean): Promise<Buffer> {
-  const page = await abrirPaginaResiliente(getBrowser, descartarBrowser);
+type TemplateResolvido = ReturnType<typeof getTemplate> extends Promise<infer R> ? R : never;
+
+/**
+ * Gera o PDF e, se o browser cair no meio da renderização, tenta uma vez com um
+ * browser novo. O `abrirPaginaResiliente` só cobre a queda no `newPage()`; um
+ * browser que ainda aceita abrir página pode morrer no `setContent()`, e sem
+ * esta segunda chance o assessor recebia o erro cru na tela.
+ */
+async function generatePdfInternal(textoFinal: string, t: TemplateResolvido, demo: boolean): Promise<Buffer> {
+  try {
+    return await renderizarPdf(textoFinal, t, demo);
+  } catch (err) {
+    if (!browserCaiu(err)) throw err;
+    console.warn(
+      '[pdf] browser caiu durante a renderização, tentando com um novo:',
+      err instanceof Error ? err.message : err,
+    );
+    return renderizarPdf(textoFinal, t, demo);
+  }
+}
+
+async function renderizarPdf(textoFinal: string, t: TemplateResolvido, demo: boolean): Promise<Buffer> {
+  const page = await abrirPaginaResiliente(getContexto, descartarBrowser);
 
   try {
     let pdfBuffer: Buffer | null = null;
