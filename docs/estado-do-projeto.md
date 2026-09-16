@@ -1,6 +1,6 @@
 # Estado do projeto — onde paramos
 
-Atualizado em **15/09/2026**.
+Atualizado em **16/09/2026**.
 
 Documento de retomada: o que existe hoje, por que está assim, o que quebrou no
 caminho e o que ficou pendente. Leia junto com o [README](../README.md) (como
@@ -26,6 +26,8 @@ mesmo dia. O que aconteceu depois:
 | 25/08 | Planos deixam de prometer o que o produto não entrega (PR #9) |
 | 01/09 | **Título e endereço deixam de sumir no histórico** (`32079c5`) |
 | 15/09 | **PDF volta a sair em produção**: contexto único para o browser não cair entre gerações (PR #10) |
+| 15/09 | Documento de estado atualizado e protocolo de sessão fixado no `CLAUDE.md` |
+| 16/09 | **Modelos atualizados para a geração Claude 5** e o adaptador ajustado às três mudanças de API que vieram junto |
 
 ---
 
@@ -238,13 +240,31 @@ contexto único (`getContexto()`). **`PDF_SIMULA_SERVERLESS=1` liga as flags de
 processo da produção no ramo local** — sem isso a máquina não reproduz o
 defeito. Medido: antes 7 de 9 gerações, depois 9 de 9, com zero relançamentos.
 
+**10. A geração Claude 5 removeu `temperature` e ligou o raciocínio.**
+Três coisas quebram ao trocar só o nome do modelo: `temperature` passa a devolver
+HTTP 400; o primeiro bloco da resposta vira `thinking` com texto vazio, então
+`content[0].text` devolve string vazia sem erro nenhum; e o raciocínio consome o
+mesmo orçamento de `max_tokens`, o que cortaria a indicação no meio com os 2048
+que usávamos. O `lib/llm.ts` trata as três — ver "Regra de Modelo LLM" no
+[CLAUDE.md](../CLAUDE.md). Os prompts de extração e ementa pediam
+`temperature: 0`; a consistência agora depende do prompt, não do parâmetro.
+
 ---
 
 ## Pendências
 
 Em ordem do que eu atacaria primeiro.
 
-### 1. "Regenerar com ajuste" grava uma indicação nova (alta)
+### 1. Medir a troca para Claude 5 em produção (alta)
+
+A troca está no código, **não em produção**: quem manda lá são as variáveis
+`LLM_MODEL_GENERATE` e `LLM_MODEL_EXTRACT` na Vercel. Antes de virar a chave,
+gerar algumas indicações reais medindo duas coisas — a qualidade do texto e a
+latência, porque a rota morre em 45s e o raciocínio do Opus 5 gasta tempo. Se
+ficar apertado, `claude-sonnet-5` custa menos da metade e responde mais rápido;
+o esforço se ajusta por `LLM_EFFORT` sem mexer no código.
+
+### 2. "Regenerar com ajuste" grava uma indicação nova (alta)
 
 O botão chama o mesmo `POST /api/indicacao`, que faz `prisma.indicacao.create`
 incondicionalmente — não existe caminho de `update` para indicação, só o de
@@ -258,7 +278,7 @@ como atrito de interface antes de alguém ler o código — é persistência.
 
 Decidir: ajuste deve versionar a indicação existente, ou criar mesmo outra?
 
-### 2. Numeração do histórico muda conforme o filtro (alta)
+### 3. Numeração do histórico muda conforme o filtro (alta)
 
 Em `app/api/indicacoes/route.ts`, `numero: total - offset - i`, onde `total` é a
 contagem **já filtrada**. Com "Últimos 7 dias" ligado, a indicação #145 aparece
@@ -266,7 +286,7 @@ como #3. Como as indicações são referidas por esse número nas conversas, iss
 engana. O certo é um número estável, guardado na tabela ou derivado da posição
 absoluta dentro do tenant.
 
-### 3. Repositório público (média, decisão)
+### 4. Repositório público (média, decisão)
 
 O `DipoV1` está **público** no GitHub. O histórico completo — 74 commits — foi
 varrido em 01/09 procurando chaves de OpenAI, Anthropic, AWS, Google e GitHub,
@@ -275,13 +295,13 @@ credenciais descartáveis de CI (`postgres:postgres@localhost`). Ainda assim é
 uma decisão a tomar de propósito, não por inércia. O `dipoagenda` foi tornado
 privado em 01/09.
 
-### 4. Rota morta `/api/historico` (baixa)
+### 5. Rota morta `/api/historico` (baixa)
 
 A página busca `/api/indicacoes`; nenhuma referência a `/api/historico` existe
 no projeto. A rota antiga continua lá, com formato diferente e sem paginação —
 armadilha para quem for mexer depois.
 
-### 5. Etapas 6, 7 e 8 do guia de PDF (média)
+### 6. Etapas 6, 7 e 8 do guia de PDF (média)
 
 - **6 — diff visual:** a referência já está versionada; falta o script de
   comparação e o limiar como teste de regressão.
@@ -291,13 +311,13 @@ armadilha para quem for mexer depois.
   por conta própria. No DOCX pode-se citar as fontes originais pelo nome — só o
   PDF precisa das substitutas livres (ver [docs/fontes.md](fontes.md)).
 
-### 6. Editor de template dentro do app (média)
+### 7. Editor de template dentro do app (média)
 
 `public/editor.html` são 1.078 linhas de HTML fora do React e do build. A tela de
 Configurações não mostra nem permite editar o template. Foi um dos pontos que
 você notou faltando na interface.
 
-### 7. Endereço público do Postgres (informativo, não é para "fechar")
+### 8. Endereço público do Postgres (informativo, não é para "fechar")
 
 O banco atende em `crossover.proxy.rlwy.net`. **Fechar derruba o site**: o app
 roda na Vercel, fora da rede do Railway, e só alcança o banco por esse endereço
@@ -305,13 +325,13 @@ roda na Vercel, fora da rede do Railway, e só alcança o banco por esse endere�
 senha, mover o banco para o mesmo projeto do backup, ou mover o app para o
 Railway. Não tratar como "item de segurança pendente" sem escolher uma delas.
 
-### 8. Branch `chore/openai-e2e-corpus` sem mesclar (baixa)
+### 9. Branch `chore/openai-e2e-corpus` sem mesclar (baixa)
 
 Parada em 13/08, 5 commits: coleta de 1.452 PDFs do SISCAM, testes E2E no
 GitHub Actions e limpeza de tenants com backup obrigatório. Única branch nunca
 mesclada — decidir se entra ou se some.
 
-### 9. Migrations perdidas (baixa, informativo)
+### 10. Migrations perdidas (baixa, informativo)
 
 O banco tem 7 migrations registradas que não existem no repositório — criadas
 quando o `.gitignore` ainda escondia `prisma/migrations/`. A baseline `0_init`

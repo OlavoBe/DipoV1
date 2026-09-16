@@ -3,6 +3,18 @@
  * Troque o provider via LLM_PROVIDER=anthropic|openai no .env
  */
 
+/**
+ * Modelos Anthropic que ainda aceitam temperature/top_p/top_k. A partir da
+ * geracao Claude 5 esses parametros foram removidos e a API responde 400.
+ */
+const ACEITA_TEMPERATURE = /^claude-(3|haiku-4-5|opus-4-5|sonnet-4-5|opus-4-6|sonnet-4-6)/;
+
+/**
+ * Modelos com raciocinio interno ligado por padrao, que aceitam
+ * output_config.effort. Haiku 4.5 e os modelos 4.5 antigos recusam o campo.
+ */
+const RACIOCINA = /^claude-(opus-5|sonnet-5|opus-4-[678]|fable)/;
+
 export interface LLMMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
@@ -22,7 +34,7 @@ function getExtractConfig(): LLMConfig {
   const provider = (process.env.LLM_PROVIDER ?? 'anthropic') as 'anthropic' | 'openai';
   const model =
     process.env.LLM_MODEL_EXTRACT ??
-    (provider === 'anthropic' ? 'claude-3-5-haiku-20241022' : 'gpt-4o-mini');
+    (provider === 'anthropic' ? 'claude-haiku-4-5' : 'gpt-4o-mini');
 
   return { apiKey, model, provider, maxTokens: 2048, timeoutMs: 30_000 };
 }
@@ -33,7 +45,7 @@ function getGenerateConfig(): LLMConfig {
   const provider = (process.env.LLM_PROVIDER ?? 'anthropic') as 'anthropic' | 'openai';
   const model =
     process.env.LLM_MODEL_GENERATE ??
-    (provider === 'anthropic' ? 'claude-sonnet-4-5-20250929' : 'gpt-4o');
+    (provider === 'anthropic' ? 'claude-opus-5' : 'gpt-4o');
 
   return { apiKey, model, provider, maxTokens: 2048, timeoutMs: 45_000 };
 }
@@ -54,7 +66,21 @@ async function callAnthropic(
       system: systemPrompt,
       messages: [{ role: 'user', content: userMessage }],
     };
-    if (temperature !== undefined) body.temperature = temperature;
+    // A geracao Claude 5 removeu os parametros de amostragem: mandar
+    // temperature nesses modelos devolve HTTP 400. So enviamos para quem aceita.
+    if (temperature !== undefined && ACEITA_TEMPERATURE.test(cfg.model)) {
+      body.temperature = temperature;
+    }
+
+    // Nos modelos que raciocinam, o esforco controla quanto o modelo pensa
+    // antes de responder. Aqui o gargalo e a latencia do serverless e o texto
+    // segue a formula do gabinete, entao 'low' e o padrao. Ajuste por LLM_EFFORT.
+    if (RACIOCINA.test(cfg.model)) {
+      body.output_config = { effort: process.env.LLM_EFFORT ?? 'low' };
+      // O raciocinio sai do mesmo orcamento de saida: com 2048 a indicacao
+      // corria risco de terminar cortada no meio.
+      body.max_tokens = Math.max(cfg.maxTokens ?? 2048, 8192);
+    }
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -73,7 +99,10 @@ async function callAnthropic(
     }
 
     const data = await res.json();
-    return data.content?.[0]?.text ?? '';
+    // Nao pegue content[0]: nos modelos que raciocinam o primeiro bloco e o de
+    // thinking e vem com texto vazio. O texto da resposta e o bloco 'text'.
+    const blocos: Array<{ type?: string; text?: string }> = data.content ?? [];
+    return blocos.find((b) => b.type === 'text')?.text ?? '';
   } finally {
     clearTimeout(timer);
   }

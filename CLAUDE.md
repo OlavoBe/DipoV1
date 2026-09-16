@@ -258,8 +258,31 @@ Cada vereador tem um estilo de texto distinto que deve ser respeitado na geraç�
 
 ## Regra de Modelo LLM
 
-- Geração de indicações **DEVE** usar `claude-sonnet-4-5-20250929` ou superior (NÃO Haiku)
-- Extração pode usar Haiku (`claude-3-5-haiku-20241022`) para economizar custo
-- Variável `LLM_MODEL_GENERATE` deve ser `claude-sonnet-4-5-20250929` em produção
-- Variável `LLM_MODEL_EXTRACT` pode ser `claude-3-5-haiku-20241022` para extração barata
+Modelos atuais da Anthropic e o preço por milhão de tokens (entrada/saída):
+
+| Modelo | ID | Preço | Onde usamos |
+|---|---|---|---|
+| Claude Opus 5 | `claude-opus-5` | $5 / $25 | Geração do texto formal |
+| Claude Sonnet 5 | `claude-sonnet-5` | $2 / $10 | Alternativa mais barata na geração |
+| Claude Haiku 4.5 | `claude-haiku-4-5` | $1 / $5 | Extração |
+
+- Geração de indicações **DEVE** usar `claude-opus-5` ou `claude-sonnet-5` (NÃO Haiku)
+- Extração pode usar `claude-haiku-4-5` para economizar custo
 - Para OpenAI: `LLM_MODEL_GENERATE=gpt-4o`, `LLM_MODEL_EXTRACT=gpt-4o-mini`
+- **Os IDs não levam sufixo de data.** É `claude-opus-5`, não `claude-opus-5-20260401`.
+  Só os modelos antigos (`claude-3-5-haiku-20241022`) usavam esse formato.
+
+### Três diferenças da geração Claude 5 que quebram código antigo
+
+Estão tratadas em `lib/llm.ts`; se você mexer no adaptador, não desfaça:
+
+1. **`temperature` foi removido** — mandar o parâmetro devolve HTTP 400. O
+   adaptador só envia para os modelos que ainda aceitam (`ACEITA_TEMPERATURE`).
+   Nossos prompts pediam `temperature: 0` na extração e `0.2` na geração; quem
+   garante a consistência agora é o prompt, não o parâmetro.
+2. **O primeiro bloco da resposta pode ser `thinking`, com texto vazio.** Ler
+   `content[0].text` devolve string vazia. Procure o bloco de `type === 'text'`.
+3. **O raciocínio vem ligado por padrão e custa tempo.** O adaptador manda
+   `output_config: { effort: 'low' }`, ajustável por `LLM_EFFORT` — a rota roda
+   em serverless com timeout de 45s, e o texto segue fórmula do gabinete. Suba
+   o esforço só medindo a latência junto.
