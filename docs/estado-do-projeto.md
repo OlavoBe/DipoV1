@@ -29,6 +29,7 @@ mesmo dia. O que aconteceu depois:
 | 15/09 | Documento de estado atualizado e protocolo de sessão fixado no `CLAUDE.md` |
 | 16/09 | **Modelos atualizados para a geração Claude 5** e o adaptador ajustado às três mudanças de API que vieram junto |
 | 16/09 | Descoberto que **produção roda na OpenAI**, e que cinco segredos estão gravados como Config na Vercel |
+| 16/09 | **Chaves da OpenAI e do Resend rotacionadas**, com permissão mínima e gravadas como Secret |
 
 ---
 
@@ -251,29 +252,59 @@ que usávamos. O `lib/llm.ts` trata as três — ver "Regra de Modelo LLM" no
 [CLAUDE.md](../CLAUDE.md). Os prompts de extração e ementa pediam
 `temperature: 0`; a consistência agora depende do prompt, não do parâmetro.
 
+**11. `429 insufficient_quota` não é erro de chave inválida.**
+O código é `credit_balance_exhausted` e a mensagem fala em créditos: a chave está
+correta, quem está sem saldo é a **organização** dona dela. Aconteceu ao trocar a
+chave por uma criada em outra organização da mesma conta — a nova era válida, só
+que apontava para um lugar sem crédito. Ao rotacionar, confira a organização e o
+projeto no seletor do topo do painel da OpenAI, não só o nome da chave.
+
 ---
 
 ## Pendências
 
 Em ordem do que eu atacaria primeiro.
 
-### 1. Segredos guardados como "Config" na Vercel (alta)
+### 1. Faltam três segredos para regravar como Secret (alta)
 
-Cinco variáveis estão no tipo **Config**, não **Secret**: `LLM_API_KEY`,
-`DATABASE_URL`, `NEXTAUTH_SECRET`, `AUTH_SECRET` e `RESEND_API_KEY`. Todas de
-18/03. A própria Vercel marca cada uma com "Needs Attention" e o aviso *"looks
-like a secret; consider rotating and saving as Secret"*.
+Cinco variáveis estavam no tipo **Config**, não **Secret**, desde 18/03. Valor em
+Config **pode ser revelado no painel** por quem tem acesso ao projeto; em Secret
+ele é de escrita apenas — depois de salvo ninguém mais lê, nem você.
 
-A diferença prática: valor em Config **pode ser revelado no painel** por quem
-tem acesso ao projeto ou por integração com permissão de leitura; em Secret ele
-é de escrita apenas — depois de salvo, ninguém mais lê, nem você. O
-`PDF_HEALTH_TOKEN`, criado em 25/08, já está como Secret e serve de exemplo.
+Em 16/09 duas foram resolvidas, rotacionando na origem e regravando como Secret:
 
-Como a chave da OpenAI é a que o gabinete paga, ela é a mais sensível da lista.
-O conserto é rotacionar cada uma na origem e regravar como Secret — só mudar o
-tipo não resolve, porque o valor atual já esteve legível.
+| Variável | Situação |
+| --- | --- |
+| `LLM_API_KEY` | **rotacionada + Secret** |
+| `RESEND_API_KEY` | **rotacionada + Secret** |
+| `DATABASE_URL` | pendente — ver o acoplamento com o backup na pendência 10 |
+| `NEXTAUTH_SECRET` | pendente — rotacionar **desloga todo mundo** |
+| `AUTH_SECRET` | pendente — idem; é o que tem precedência no `auth.ts` |
 
-### 2. Decidido: produção segue na OpenAI
+Só mudar o tipo não resolve: o valor atual já esteve legível, então tem que ser
+chave nova na origem. E a mudança só vale **no próximo deploy** — salvar sem
+redeploy deixa produção com o valor velho.
+
+### 2. Chaves da OpenAI e do Resend — rotacionadas em 16/09
+
+Registro, não pendência. As duas eram `Full access` / `All`, sem expiração.
+Foram substituídas por chaves **Restricted**: a da OpenAI com acesso só a
+`/v1/chat/completions`, a do Resend só com *Sending access* — exatamente o que o
+código usa, nada além. As antigas foram revogadas, inclusive **a chave da OpenAI
+exposta em conversa desde agosto**, que era risco aberto desde a primeira sessão.
+
+Como está a conta da OpenAI hoje:
+
+| Chave | Sistema | Onde mora | Permissão |
+| --- | --- | --- | --- |
+| `Dipo Vercel producao` | Indicações | Vercel, `LLM_API_KEY` | Chat completions |
+| `Dipo Agenda Railway` | Agenda | Railway, `OPENAI_API_KEY` | Chat completions |
+
+As duas vivem na **mesma organização e projeto** — Personal / *Indicações geradas
+por IA* — e dividem o mesmo saldo. Se o crédito acabar, os dois sistemas param
+juntos. O auto-reload está **desligado**.
+
+### 3. Decidido: produção segue na OpenAI
 
 Não é pendência, é registro de decisão (16/09). O gabinete paga a chave da
 OpenAI, então `gpt-4o` na geração e `gpt-4o-mini` na extração continuam. O
@@ -282,7 +313,7 @@ o dia em que fizer sentido trocar — ver o [CLAUDE.md](../CLAUDE.md).
 
 Sobra uma limpeza pequena: apagar a variável `LLM_MODEL=gpt-4o-mini` da Vercel,
 que nenhuma linha do código lê e engana quem for trocar modelo.
-### 3. "Regenerar com ajuste" grava uma indicação nova (alta)
+### 4. "Regenerar com ajuste" grava uma indicação nova (alta)
 
 O botão chama o mesmo `POST /api/indicacao`, que faz `prisma.indicacao.create`
 incondicionalmente — não existe caminho de `update` para indicação, só o de
@@ -296,7 +327,7 @@ como atrito de interface antes de alguém ler o código — é persistência.
 
 Decidir: ajuste deve versionar a indicação existente, ou criar mesmo outra?
 
-### 4. Numeração do histórico muda conforme o filtro (alta)
+### 5. Numeração do histórico muda conforme o filtro (alta)
 
 Em `app/api/indicacoes/route.ts`, `numero: total - offset - i`, onde `total` é a
 contagem **já filtrada**. Com "Últimos 7 dias" ligado, a indicação #145 aparece
@@ -304,7 +335,7 @@ como #3. Como as indicações são referidas por esse número nas conversas, iss
 engana. O certo é um número estável, guardado na tabela ou derivado da posição
 absoluta dentro do tenant.
 
-### 5. Repositório público (média, decisão)
+### 6. Repositório público (média, decisão)
 
 O `DipoV1` está **público** no GitHub. O histórico completo — 74 commits — foi
 varrido em 01/09 procurando chaves de OpenAI, Anthropic, AWS, Google e GitHub,
@@ -313,13 +344,13 @@ credenciais descartáveis de CI (`postgres:postgres@localhost`). Ainda assim é
 uma decisão a tomar de propósito, não por inércia. O `dipoagenda` foi tornado
 privado em 01/09.
 
-### 6. Rota morta `/api/historico` (baixa)
+### 7. Rota morta `/api/historico` (baixa)
 
 A página busca `/api/indicacoes`; nenhuma referência a `/api/historico` existe
 no projeto. A rota antiga continua lá, com formato diferente e sem paginação —
 armadilha para quem for mexer depois.
 
-### 7. Etapas 6, 7 e 8 do guia de PDF (média)
+### 8. Etapas 6, 7 e 8 do guia de PDF (média)
 
 - **6 — diff visual:** a referência já está versionada; falta o script de
   comparação e o limiar como teste de regressão.
@@ -329,13 +360,13 @@ armadilha para quem for mexer depois.
   por conta própria. No DOCX pode-se citar as fontes originais pelo nome — só o
   PDF precisa das substitutas livres (ver [docs/fontes.md](fontes.md)).
 
-### 8. Editor de template dentro do app (média)
+### 9. Editor de template dentro do app (média)
 
 `public/editor.html` são 1.078 linhas de HTML fora do React e do build. A tela de
 Configurações não mostra nem permite editar o template. Foi um dos pontos que
 você notou faltando na interface.
 
-### 9. Endereço público do Postgres (informativo, não é para "fechar")
+### 10. Endereço público do Postgres (informativo, não é para "fechar")
 
 O banco atende em `crossover.proxy.rlwy.net`. **Fechar derruba o site**: o app
 roda na Vercel, fora da rede do Railway, e só alcança o banco por esse endereço
@@ -343,13 +374,13 @@ roda na Vercel, fora da rede do Railway, e só alcança o banco por esse endere�
 senha, mover o banco para o mesmo projeto do backup, ou mover o app para o
 Railway. Não tratar como "item de segurança pendente" sem escolher uma delas.
 
-### 10. Branch `chore/openai-e2e-corpus` sem mesclar (baixa)
+### 11. Branch `chore/openai-e2e-corpus` sem mesclar (baixa)
 
 Parada em 13/08, 5 commits: coleta de 1.452 PDFs do SISCAM, testes E2E no
 GitHub Actions e limpeza de tenants com backup obrigatório. Única branch nunca
 mesclada — decidir se entra ou se some.
 
-### 11. Migrations perdidas (baixa, informativo)
+### 12. Migrations perdidas (baixa, informativo)
 
 O banco tem 7 migrations registradas que não existem no repositório — criadas
 quando o `.gitignore` ainda escondia `prisma/migrations/`. A baseline `0_init`
