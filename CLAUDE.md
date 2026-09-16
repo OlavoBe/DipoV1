@@ -194,6 +194,9 @@ não escreve no repositório não existe para as outras máquinas.
    - a lista de pendências, reordenada, com o que entrou e o que saiu.
 2. **Commit e push.** Documento atualizado que ficou na máquina não serve para
    nada.
+3. **Atualize a página de estado** — o resumo dos dois sistemas que se lê sem
+   abrir o editor: <https://claude.ai/artifact/XoCGgChfsG6hcf1RJVhRoy>. O
+   repositório é a fonte da verdade; a página é por onde ela é lida.
 
 Isso vale **mesmo quando a sessão não mudou código**. "Verifiquei X e está
 certo", "o item 3 já estava resolvido", "tentei Y e não funcionou por Z" são
