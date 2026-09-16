@@ -258,21 +258,44 @@ Cada vereador tem um estilo de texto distinto que deve ser respeitado na geraç�
 
 ## Regra de Modelo LLM
 
-Modelos atuais da Anthropic e o preço por milhão de tokens (entrada/saída):
+### Produção roda na OpenAI
 
-| Modelo | ID | Preço | Onde usamos |
+Conferido no painel da Vercel em 16/09/2026. É isto que está no ar:
+
+| Variável na Vercel | Valor | Efeito |
+|---|---|---|
+| `LLM_PROVIDER` | `openai` | o adaptador nunca chama a Anthropic |
+| `LLM_MODEL_GENERATE` | **não existe** | cai no padrão do código: `gpt-4o` |
+| `LLM_MODEL_EXTRACT` | **não existe** | cai no padrão do código: `gpt-4o-mini` |
+| `LLM_API_KEY` | chave da OpenAI | é a chave que o gabinete paga |
+
+Então a geração usa **`gpt-4o`** e a extração **`gpt-4o-mini`**, pelos padrões de
+`lib/llm.ts`. As 154 indicações do histórico saíram assim.
+
+> **Cuidado com a variável morta.** Existe um `LLM_MODEL=gpt-4o-mini` na Vercel
+> que **nenhuma linha do código lê** — o adaptador lê `LLM_MODEL_EXTRACT` e
+> `LLM_MODEL_GENERATE`. Editar `LLM_MODEL` não muda modelo nenhum.
+
+Ao trocar de modelo, mexa nas variáveis da Vercel, não só no padrão do código: o
+padrão só vale quando a variável não existe.
+
+### Se um dia trocar para a Anthropic
+
+O adaptador suporta os dois provedores. Para migrar: `LLM_API_KEY` recebe uma
+chave da Anthropic e `LLM_PROVIDER` vira `anthropic`. Modelos atuais e preço por
+milhão de tokens (entrada/saída):
+
+| Modelo | ID | Preço | Papel |
 |---|---|---|---|
-| Claude Opus 5 | `claude-opus-5` | $5 / $25 | Geração do texto formal |
-| Claude Sonnet 5 | `claude-sonnet-5` | $2 / $10 | Alternativa mais barata na geração |
-| Claude Haiku 4.5 | `claude-haiku-4-5` | $1 / $5 | Extração |
+| Claude Opus 5 | `claude-opus-5` | $5 / $25 | Geração — é o padrão do código |
+| Claude Sonnet 5 | `claude-sonnet-5` | $2 / $10 | Geração, mais barato e mais rápido |
+| Claude Haiku 4.5 | `claude-haiku-4-5` | $1 / $5 | Extração — é o padrão do código |
 
-- Geração de indicações **DEVE** usar `claude-opus-5` ou `claude-sonnet-5` (NÃO Haiku)
-- Extração pode usar `claude-haiku-4-5` para economizar custo
-- Para OpenAI: `LLM_MODEL_GENERATE=gpt-4o`, `LLM_MODEL_EXTRACT=gpt-4o-mini`
+- Geração **nunca** deve usar Haiku; extração pode, para economizar.
 - **Os IDs não levam sufixo de data.** É `claude-opus-5`, não `claude-opus-5-20260401`.
   Só os modelos antigos (`claude-3-5-haiku-20241022`) usavam esse formato.
 
-### Três diferenças da geração Claude 5 que quebram código antigo
+#### Três diferenças da geração Claude 5 que quebram código antigo
 
 Estão tratadas em `lib/llm.ts`; se você mexer no adaptador, não desfaça:
 

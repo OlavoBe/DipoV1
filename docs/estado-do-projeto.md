@@ -28,6 +28,7 @@ mesmo dia. O que aconteceu depois:
 | 15/09 | **PDF volta a sair em produção**: contexto único para o browser não cair entre gerações (PR #10) |
 | 15/09 | Documento de estado atualizado e protocolo de sessão fixado no `CLAUDE.md` |
 | 16/09 | **Modelos atualizados para a geração Claude 5** e o adaptador ajustado às três mudanças de API que vieram junto |
+| 16/09 | Descoberto que **produção roda na OpenAI**, e que cinco segredos estão gravados como Config na Vercel |
 
 ---
 
@@ -63,6 +64,7 @@ botão de copiar na tela de geração e no histórico.
 | Geração de PDF | **Funcionando**, e desde 25/08 com o Chromium vindo do bundle |
 | Testes | 161 unitários passando (aferido em 15/09) |
 | CI | GitHub Actions verde |
+| LLM | **OpenAI** — gpt-4o na geração, gpt-4o-mini na extração |
 | Uso | 154 indicações geradas, 19 delas num único dia |
 | Visibilidade do repo | **Público** — ver pendências |
 
@@ -255,28 +257,32 @@ que usávamos. O `lib/llm.ts` trata as três — ver "Regra de Modelo LLM" no
 
 Em ordem do que eu atacaria primeiro.
 
-### 1. Medir a troca para Claude 5 em produção (alta)
+### 1. Segredos guardados como "Config" na Vercel (alta)
 
-**Produção não roda em Claude — roda na OpenAI.** Conferido no painel da Vercel
-em 16/09: `LLM_PROVIDER=openai`, e as variáveis `LLM_MODEL_GENERATE` e
-`LLM_MODEL_EXTRACT` **não existem lá**. Ou seja, produção usa os padrões do
-código para OpenAI: `gpt-4o` na geração e `gpt-4o-mini` na extração. A regra que
-este documento e o CLAUDE.md traziam — "produção deve usar Sonnet" — nunca foi
-verdade.
+Cinco variáveis estão no tipo **Config**, não **Secret**: `LLM_API_KEY`,
+`DATABASE_URL`, `NEXTAUTH_SECRET`, `AUTH_SECRET` e `RESEND_API_KEY`. Todas de
+18/03. A própria Vercel marca cada uma com "Needs Attention" e o aviso *"looks
+like a secret; consider rotating and saving as Secret"*.
 
-Existe uma variável `LLM_MODEL=gpt-4o-mini` na Vercel que **nenhuma linha do
-código lê** (o adaptador lê `LLM_MODEL_EXTRACT` e `LLM_MODEL_GENERATE`). Quem
-editar essa variável achando que muda o modelo não muda nada. Apagar ou renomear.
+A diferença prática: valor em Config **pode ser revelado no painel** por quem
+tem acesso ao projeto ou por integração com permissão de leitura; em Secret ele
+é de escrita apenas — depois de salvo, ninguém mais lê, nem você. O
+`PDF_HEALTH_TOKEN`, criado em 25/08, já está como Secret e serve de exemplo.
 
-Para migrar de verdade para Claude 5 são três passos, nesta ordem: criar uma
-chave da Anthropic e pôr em `LLM_API_KEY`; trocar `LLM_PROVIDER` para
-`anthropic`; e gerar algumas indicações reais medindo **qualidade do texto e
-latência**, porque a rota morre em 45s e o raciocínio gasta tempo. Se ficar
-apertado, `claude-sonnet-5` custa menos da metade do Opus 5 e responde mais
-rápido; o esforço se ajusta por `LLM_EFFORT` sem mexer no código. A migração
-também tornaria irrelevante a chave da OpenAI exposta em agosto (pendência 4).
+Como a chave da OpenAI é a que o gabinete paga, ela é a mais sensível da lista.
+O conserto é rotacionar cada uma na origem e regravar como Secret — só mudar o
+tipo não resolve, porque o valor atual já esteve legível.
 
-### 2. "Regenerar com ajuste" grava uma indicação nova (alta)
+### 2. Decidido: produção segue na OpenAI
+
+Não é pendência, é registro de decisão (16/09). O gabinete paga a chave da
+OpenAI, então `gpt-4o` na geração e `gpt-4o-mini` na extração continuam. O
+suporte a Claude no adaptador fica disponível, atualizado para a geração 5, para
+o dia em que fizer sentido trocar — ver o [CLAUDE.md](../CLAUDE.md).
+
+Sobra uma limpeza pequena: apagar a variável `LLM_MODEL=gpt-4o-mini` da Vercel,
+que nenhuma linha do código lê e engana quem for trocar modelo.
+### 3. "Regenerar com ajuste" grava uma indicação nova (alta)
 
 O botão chama o mesmo `POST /api/indicacao`, que faz `prisma.indicacao.create`
 incondicionalmente — não existe caminho de `update` para indicação, só o de
@@ -290,7 +296,7 @@ como atrito de interface antes de alguém ler o código — é persistência.
 
 Decidir: ajuste deve versionar a indicação existente, ou criar mesmo outra?
 
-### 3. Numeração do histórico muda conforme o filtro (alta)
+### 4. Numeração do histórico muda conforme o filtro (alta)
 
 Em `app/api/indicacoes/route.ts`, `numero: total - offset - i`, onde `total` é a
 contagem **já filtrada**. Com "Últimos 7 dias" ligado, a indicação #145 aparece
@@ -298,7 +304,7 @@ como #3. Como as indicações são referidas por esse número nas conversas, iss
 engana. O certo é um número estável, guardado na tabela ou derivado da posição
 absoluta dentro do tenant.
 
-### 4. Repositório público (média, decisão)
+### 5. Repositório público (média, decisão)
 
 O `DipoV1` está **público** no GitHub. O histórico completo — 74 commits — foi
 varrido em 01/09 procurando chaves de OpenAI, Anthropic, AWS, Google e GitHub,
@@ -307,13 +313,13 @@ credenciais descartáveis de CI (`postgres:postgres@localhost`). Ainda assim é
 uma decisão a tomar de propósito, não por inércia. O `dipoagenda` foi tornado
 privado em 01/09.
 
-### 5. Rota morta `/api/historico` (baixa)
+### 6. Rota morta `/api/historico` (baixa)
 
 A página busca `/api/indicacoes`; nenhuma referência a `/api/historico` existe
 no projeto. A rota antiga continua lá, com formato diferente e sem paginação —
 armadilha para quem for mexer depois.
 
-### 6. Etapas 6, 7 e 8 do guia de PDF (média)
+### 7. Etapas 6, 7 e 8 do guia de PDF (média)
 
 - **6 — diff visual:** a referência já está versionada; falta o script de
   comparação e o limiar como teste de regressão.
@@ -323,13 +329,13 @@ armadilha para quem for mexer depois.
   por conta própria. No DOCX pode-se citar as fontes originais pelo nome — só o
   PDF precisa das substitutas livres (ver [docs/fontes.md](fontes.md)).
 
-### 7. Editor de template dentro do app (média)
+### 8. Editor de template dentro do app (média)
 
 `public/editor.html` são 1.078 linhas de HTML fora do React e do build. A tela de
 Configurações não mostra nem permite editar o template. Foi um dos pontos que
 você notou faltando na interface.
 
-### 8. Endereço público do Postgres (informativo, não é para "fechar")
+### 9. Endereço público do Postgres (informativo, não é para "fechar")
 
 O banco atende em `crossover.proxy.rlwy.net`. **Fechar derruba o site**: o app
 roda na Vercel, fora da rede do Railway, e só alcança o banco por esse endereço
@@ -337,13 +343,13 @@ roda na Vercel, fora da rede do Railway, e só alcança o banco por esse endere�
 senha, mover o banco para o mesmo projeto do backup, ou mover o app para o
 Railway. Não tratar como "item de segurança pendente" sem escolher uma delas.
 
-### 9. Branch `chore/openai-e2e-corpus` sem mesclar (baixa)
+### 10. Branch `chore/openai-e2e-corpus` sem mesclar (baixa)
 
 Parada em 13/08, 5 commits: coleta de 1.452 PDFs do SISCAM, testes E2E no
 GitHub Actions e limpeza de tenants com backup obrigatório. Única branch nunca
 mesclada — decidir se entra ou se some.
 
-### 10. Migrations perdidas (baixa, informativo)
+### 11. Migrations perdidas (baixa, informativo)
 
 O banco tem 7 migrations registradas que não existem no repositório — criadas
 quando o `.gitignore` ainda escondia `prisma/migrations/`. A baseline `0_init`
