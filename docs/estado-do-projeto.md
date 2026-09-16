@@ -257,12 +257,24 @@ Em ordem do que eu atacaria primeiro.
 
 ### 1. Medir a troca para Claude 5 em produção (alta)
 
-A troca está no código, **não em produção**: quem manda lá são as variáveis
-`LLM_MODEL_GENERATE` e `LLM_MODEL_EXTRACT` na Vercel. Antes de virar a chave,
-gerar algumas indicações reais medindo duas coisas — a qualidade do texto e a
-latência, porque a rota morre em 45s e o raciocínio do Opus 5 gasta tempo. Se
-ficar apertado, `claude-sonnet-5` custa menos da metade e responde mais rápido;
-o esforço se ajusta por `LLM_EFFORT` sem mexer no código.
+**Produção não roda em Claude — roda na OpenAI.** Conferido no painel da Vercel
+em 16/09: `LLM_PROVIDER=openai`, e as variáveis `LLM_MODEL_GENERATE` e
+`LLM_MODEL_EXTRACT` **não existem lá**. Ou seja, produção usa os padrões do
+código para OpenAI: `gpt-4o` na geração e `gpt-4o-mini` na extração. A regra que
+este documento e o CLAUDE.md traziam — "produção deve usar Sonnet" — nunca foi
+verdade.
+
+Existe uma variável `LLM_MODEL=gpt-4o-mini` na Vercel que **nenhuma linha do
+código lê** (o adaptador lê `LLM_MODEL_EXTRACT` e `LLM_MODEL_GENERATE`). Quem
+editar essa variável achando que muda o modelo não muda nada. Apagar ou renomear.
+
+Para migrar de verdade para Claude 5 são três passos, nesta ordem: criar uma
+chave da Anthropic e pôr em `LLM_API_KEY`; trocar `LLM_PROVIDER` para
+`anthropic`; e gerar algumas indicações reais medindo **qualidade do texto e
+latência**, porque a rota morre em 45s e o raciocínio gasta tempo. Se ficar
+apertado, `claude-sonnet-5` custa menos da metade do Opus 5 e responde mais
+rápido; o esforço se ajusta por `LLM_EFFORT` sem mexer no código. A migração
+também tornaria irrelevante a chave da OpenAI exposta em agosto (pendência 4).
 
 ### 2. "Regenerar com ajuste" grava uma indicação nova (alta)
 
