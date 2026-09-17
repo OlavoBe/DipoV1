@@ -359,9 +359,28 @@ function buildUserPromptServico(data: ExtractedData): string {
 function buildUserPromptGeral(data: ExtractedData): string {
   const categoriaLabel = CATEGORIA_LABEL[data.categoria] ?? data.categoria;
 
+  // Endereço. Faltava aqui, e era a causa de o corpo da indicação sair sem
+  // local: este caminho atende tudo que não é servico_urbano nem
+  // seguranca_publica - "poda de árvore" cai em meio_ambiente, por exemplo -, e
+  // o modelo recebia o pedido sem logradouro, número ou bairro. Sem o dado ele
+  // inventava endereço, omitia, ou pedia o endereço ao usuário dentro do
+  // documento, conforme a instrução do prompt apertava. A ementa saía correta
+  // porque lib/ementa.ts monta a localização por conta própria.
+  const enderecoCompleto = [
+    data.logradouro,
+    data.numero && data.numero !== 's/n' ? `nº ${data.numero}` : data.numero,
+    data.trecho_localizacao,
+    data.bairro,
+    data.cep ? `CEP ${data.cep}` : null,
+    data.cidade ? `${data.cidade}/${data.uf}` : null,
+  ]
+    .filter(Boolean)
+    .join(', ');
+
   const linhas = [
     `Área / Categoria: ${categoriaLabel}`,
     `Tema da indicação: ${data.tema}`,
+    enderecoCompleto ? `Local / endereço: ${enderecoCompleto}` : null,
     data.origem_solicitacao ? `Solicitado por: ${data.origem_solicitacao}` : null,
     `Descrição / justificativa: ${data.descricao_problema}`,
     data.providencias_sugeridas.length > 0
