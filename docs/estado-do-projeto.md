@@ -30,6 +30,8 @@ mesmo dia. O que aconteceu depois:
 | 16/09 | **Modelos atualizados para a geração Claude 5** e o adaptador ajustado às três mudanças de API que vieram junto |
 | 16/09 | Descoberto que **produção roda na OpenAI**, e que cinco segredos estão gravados como Config na Vercel |
 | 16/09 | **Chaves da OpenAI e do Resend rotacionadas**, com permissão mínima e gravadas como Secret |
+| 16/09 | **AUTH_SECRET rotacionado** e gravado como Secret; NEXTAUTH_SECRET apagado |
+| 16/09 | Numeração do histórico deixa de mudar conforme o filtro |
 
 ---
 
@@ -265,26 +267,41 @@ projeto no seletor do topo do painel da OpenAI, não só o nome da chave.
 
 Em ordem do que eu atacaria primeiro.
 
-### 1. Faltam três segredos para regravar como Secret (alta)
+### 1. Falta um segredo para rotacionar: `DATABASE_URL` (alta)
 
-Cinco variáveis estavam no tipo **Config**, não **Secret**, desde 18/03. Valor em
-Config **pode ser revelado no painel** por quem tem acesso ao projeto; em Secret
-ele é de escrita apenas — depois de salvo ninguém mais lê, nem você.
-
-Em 16/09 duas foram resolvidas, rotacionando na origem e regravando como Secret:
+Cinco variáveis estavam no tipo **Config** desde 18/03. Valor em Config **pode
+ser revelado no painel** por quem tem acesso ao projeto; em Secret é de escrita
+apenas — depois de salvo ninguém mais lê, nem você.
 
 | Variável | Situação |
 | --- | --- |
-| `LLM_API_KEY` | **rotacionada + Secret** |
-| `RESEND_API_KEY` | **rotacionada + Secret** |
-| `DATABASE_URL` | pendente — ver o acoplamento com o backup na pendência 10 |
-| `NEXTAUTH_SECRET` | pendente — rotacionar **desloga todo mundo** |
-| `AUTH_SECRET` | pendente — idem; é o que tem precedência no `auth.ts` |
+| `LLM_API_KEY` | rotacionada + Secret (16/09) |
+| `RESEND_API_KEY` | rotacionada + Secret (16/09) |
+| `AUTH_SECRET` | **rotacionado + Secret (16/09)** |
+| `NEXTAUTH_SECRET` | **apagado** — era fallback morto, ver abaixo |
+| `DATABASE_URL` | **pendente**, e é a mais trabalhosa |
 
-Só mudar o tipo não resolve: o valor atual já esteve legível, então tem que ser
-chave nova na origem. E a mudança só vale **no próximo deploy** — salvar sem
-redeploy deixa produção com o valor velho.
+Sobre o `NEXTAUTH_SECRET`: o `auth.ts` lê `AUTH_SECRET ?? NEXTAUTH_SECRET`, então
+o segundo nunca era usado em produção — só guardava uma cópia do segredo antigo,
+legível no painel. Foi apagado. Se algum dia o `AUTH_SECRET` sumir, o login para
+de funcionar em vez de cair silenciosamente num segredo velho, o que é melhor.
 
+**Por que a rotação confirmou a urgência:** ao abrir a edição do `AUTH_SECRET`
+para trocá-lo, a Vercel exibiu o valor antigo em texto puro na tela. Dois
+cliques. Era exatamente o risco descrito nesta pendência, demonstrado.
+
+#### O que falta, e por que exige janela própria
+
+O `DATABASE_URL` não é uma troca, é uma coreografia em três lugares:
+
+1. rotacionar a senha do Postgres no Railway (o serviço reinicia);
+2. atualizar a variável na Vercel e **redeployar**;
+3. atualizar `BACKUP_INDICACOES_URL` no serviço `dipo-backups`, que guarda a
+   mesma URL como **valor literal** — referência `${{...}}` não cruza projetos.
+
+Entre o passo 1 e o 3 o site fica fora do ar e o backup falha. Não comece sem
+tempo de terminar: parar no meio deixa produção quebrada, e é pior que o risco
+que a rotação corrige.
 ### 2. Chaves da OpenAI e do Resend — rotacionadas em 16/09
 
 Registro, não pendência. As duas eram `Full access` / `All`, sem expiração.
