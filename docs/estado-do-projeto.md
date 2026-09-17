@@ -1,6 +1,6 @@
 # Estado do projeto — onde paramos
 
-Atualizado em **16/09/2026**.
+Atualizado em **16/09/2026**, no fim do dia.
 
 Documento de retomada: o que existe hoje, por que está assim, o que quebrou no
 caminho e o que ficou pendente. Leia junto com o [README](../README.md) (como
@@ -63,7 +63,7 @@ botão de copiar na tela de geração e no histórico.
 | Backup do banco | Diário e cifrado desde 01/09 ([dipo-backups](https://github.com/OlavoBe/dipo-backups)) |
 | Migrations | Em dia (`prisma migrate status` limpo) |
 | Geração de PDF | **Funcionando**, e desde 25/08 com o Chromium vindo do bundle |
-| Testes | 161 unitários passando (aferido em 15/09) |
+| Testes | 202 passando em 18 arquivos, itest run (aferido em 16/09) |
 | CI | GitHub Actions verde |
 | LLM | **OpenAI** — gpt-4o na geração, gpt-4o-mini na extração |
 | Uso | 154 indicações geradas, 19 delas num único dia |
@@ -132,7 +132,7 @@ Três camadas, porque nenhuma delas cobre o que a seguinte cobre.
 
 | Camada | Onde roda | O que prova |
 |---|---|---|
-| 161 testes unitários | máquina e CI | a lógica do gerador, pelo ramo do Playwright |
+| 202 testes | máquina e CI | a lógica do gerador, pelo ramo do Playwright |
 | `verify:bundle` | CI, depois do build | que o Chromium viaja no bundle de cada rota que gera PDF |
 | Smoke pós-deploy | GitHub Actions, após o deploy | que o ramo serverless lança o Chromium e devolve um PDF |
 
@@ -327,14 +327,21 @@ como atrito de interface antes de alguém ler o código — é persistência.
 
 Decidir: ajuste deve versionar a indicação existente, ou criar mesmo outra?
 
-### 5. Numeração do histórico muda conforme o filtro (alta)
+### 5. Numeração do histórico — resolvida em 16/09
 
-Em `app/api/indicacoes/route.ts`, `numero: total - offset - i`, onde `total` é a
-contagem **já filtrada**. Com "Últimos 7 dias" ligado, a indicação #145 aparece
-como #3. Como as indicações são referidas por esse número nas conversas, isso
-engana. O certo é um número estável, guardado na tabela ou derivado da posição
-absoluta dentro do tenant.
+Registro. O número saía de `total - offset - i`, com o total **já filtrado**: a
+mesma indicação aparecia como #145 em "Todos" e como #3 em "Últimos 7 dias".
+Como é assim que elas são referidas na conversa, o número mudar conforme o
+filtro engana quem procura.
 
+Agora é a **posição absoluta dentro do gabinete** — quantas indicações existem
+até ela, inclusive. Não depende de filtro nem de página, e sem filtro o
+resultado é idêntico ao de antes: nenhuma indicação mudou de número.
+
+Custa N contagens por página (20) em vez de uma conta. Com 154 registros é
+irrelevante. Se um dia incomodar, o caminho é guardar o número numa coluna na
+criação — **o que exige migration aplicada à mão**, porque o deploy daqui não
+aplica (armadilha 5). Não vale a troca hoje.
 ### 6. Repositório público (média, decisão)
 
 O `DipoV1` está **público** no GitHub. O histórico completo — 74 commits — foi
