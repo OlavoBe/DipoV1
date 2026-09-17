@@ -33,7 +33,7 @@ describe('parseTextoToDoc — os 4 estilos de gabinete', () => {
 
     expect(doc.vocativo).toEqual(['Sr. Presidente,', 'Sras. Vereadoras e', 'Srs. Vereadores.']);
     expect(doc.preambulo).toHaveLength(1);
-    expect(doc.preambulo[0]).toContain('Foramos procurados por moradores');
+    expect(doc.preambulo[0]).toContain('Fomos procurados por moradores');
     expect(doc.tituloNumero).toBeNull();          // "____" = deixar para o protocolo
     expect(doc.tituloAno).toBe(2026);
     expect(doc.corpo[0]).toContain('Indico à Mesa');
