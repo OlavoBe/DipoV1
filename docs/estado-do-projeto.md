@@ -1,6 +1,6 @@
 # Estado do projeto — onde paramos
 
-Atualizado em **16/09/2026**, no fim do dia.
+Atualizado em **17/09/2026**, madrugada.
 
 Documento de retomada: o que existe hoje, por que está assim, o que quebrou no
 caminho e o que ficou pendente. Leia junto com o [README](../README.md) (como
@@ -32,6 +32,7 @@ mesmo dia. O que aconteceu depois:
 | 16/09 | **Chaves da OpenAI e do Resend rotacionadas**, com permissão mínima e gravadas como Secret |
 | 16/09 | **AUTH_SECRET rotacionado** e gravado como Secret; NEXTAUTH_SECRET apagado |
 | 16/09 | Numeração do histórico deixa de mudar conforme o filtro |
+| 17/09 | **Ajuste vira versão da mesma indicação**, com a instrução guardada — verificado em produção |
 
 ---
 
@@ -254,7 +255,23 @@ que usávamos. O `lib/llm.ts` trata as três — ver "Regra de Modelo LLM" no
 [CLAUDE.md](../CLAUDE.md). Os prompts de extração e ementa pediam
 `temperature: 0`; a consistência agora depende do prompt, não do parâmetro.
 
-**11. `429 insufficient_quota` não é erro de chave inválida.**
+**11. Rodar migration desta máquina esbarra em quatro coisas.** Todas do
+ambiente, nenhuma do projeto, e todas custaram uma tentativa em 17/09: o PATH do
+terminal não tem o Node (o app foi aberto antes da instalação); a política de
+execução do PowerShell bloqueia o `npx.ps1`; o `npx` baixa o Prisma da internet
+em vez de usar o local; e PowerShell e cmd têm sintaxes diferentes para variável
+de ambiente. O caminho que funciona é criar o `.env` (já ignorado pelo git) com a
+`DATABASE_URL` e chamar o binário local:
+`"C:\Program Files\nodejs\node.exe" node_modules\prisma\build\index.js migrate deploy`.
+
+**12. O endereço do pedido pode não chegar ao texto final.** Num teste de 17/09,
+o pedido dizia "Rua Doutor Teste, 100, Vila Santa Rosa"; a ementa saiu correta e
+o corpo da indicação trouxe "Rua das Flores, Bairro Jardim Primavera" — endereço
+que não estava no pedido. Parece contaminação dos exemplos few-shot vazando para
+o texto. **Não investigado ainda**, e é grave: o documento vai para protocolo com
+endereço errado. O corpus de ajustes agora registra esse tipo de correção.
+
+**13. `429 insufficient_quota` não é erro de chave inválida.**
 O código é `credit_balance_exhausted` e a mensagem fala em créditos: a chave está
 correta, quem está sem saldo é a **organização** dona dela. Aconteceu ao trocar a
 chave por uma criada em outra organização da mesma conta — a nova era válida, só
@@ -330,74 +347,38 @@ o dia em que fizer sentido trocar — ver o [CLAUDE.md](../CLAUDE.md).
 
 Sobra uma limpeza pequena: apagar a variável `LLM_MODEL=gpt-4o-mini` da Vercel,
 que nenhuma linha do código lê e engana quem for trocar modelo.
-### 4. "Regenerar com ajuste" — desenho decidido, falta implementar (alta)
+### 4. "Regenerar com ajuste" — implementado em 17/09
 
-Hoje cada "Regenerar com ajuste" chama o mesmo `POST /api/indicacao`, que faz
-`prisma.indicacao.create` incondicionalmente: cinco tentativas viram cinco
-registros, cinco no total de 154 e cinco consumindo a cota do TRIAL.
+O ajuste passou a produzir **uma nova versão da mesma indicação**. Verificado em
+produção: uma geração seguida de um ajuste produziu **um único card** no
+histórico (`#175`), com o endereço já corrigido. Antes seriam dois registros,
+duas posições no total e duas cotas do TRIAL.
 
-**Decisão (16/09):** o ajuste passa a produzir **uma nova versão da mesma
-indicação**, não uma indicação nova. E a versão anterior é preservada, com a
-instrução que a gerou — isso não é só arrumação de histórico: é o material para
-entender o que a IA erra e melhorar prompt e few-shot.
+A tabela `IndicacaoVersao` guarda cada versão com a instrução que a gerou. A
+versão 1 é gravada também na geração normal — sem isso, a primeira versão de
+cada indicação seria a única impossível de consultar.
 
-#### Modelo
+Proteção que vale conhecer antes de mexer: o `findFirst` do ajuste filtra por
+`tenantId`. O `ajustarId` vem do cliente; sem esse filtro, um id forjado editaria
+a indicação de outro gabinete. Há teste cobrindo exatamente isso.
 
-Tabela nova, em vez de auto-relação em `Indicacao`:
+### 4b. O botão de ajuste está escondido (alta, interface)
 
-```prisma
-model IndicacaoVersao {
-  id            String    @id @default(cuid())
-  indicacaoId   String
-  indicacao     Indicacao @relation(fields: [indicacaoId], references: [id], onDelete: Cascade)
-  versao        Int       // 1 = original
-  textoFinal    String
-  ementa        String?
-  extractedJson String
-  ajuste        String?   // a instrução do assessor que produziu ESTA versão; null na v1
-  criadaEm      DateTime  @default(now())
+Descoberto ao testar o item acima. Na tela de resultado existem dois caminhos:
 
-  @@unique([indicacaoId, versao])
-  @@index([indicacaoId])
-}
-```
+| Elemento | O que faz | Peso visual |
+| --- | --- | --- |
+| **Nova indicação** | limpa tudo e recomeça — cria registro novo | botão, destacado |
+| **Ajustar indicação** | abre a caixa de instrução do ajuste | link pequeno com seta |
 
-`Indicacao` continua com **uma linha por indicação**, sempre com o texto atual.
-É o que faz o conserto ser barato: histórico, contagem, numeração e cota do
-TRIAL passam a estar certos sem tocar em nenhuma dessas consultas. Uma
-auto-relação em `Indicacao` obrigaria a filtrar "só a última versão" em todas
-elas, e qualquer consulta esquecida voltaria a contar duplicata.
+O dono do produto, sabendo exatamente o que a funcionalidade faz, usou o
+primeiro quando queria o segundo. O assessor vai fazer o mesmo — e continuará
+criando indicações novas em vez de ajustar, que é justamente o comportamento que
+o versionamento veio corrigir.
 
-#### Fluxo
-
-- **Geração normal:** cria a `Indicacao` e a versão 1 (`ajuste: null`).
-- **Ajuste:** o cliente manda o `record_id` junto com a instrução; a rota
-  **atualiza** a `Indicacao` com o texto novo e **insere** a versão N com o
-  texto novo e o `ajuste` que o assessor escreveu.
-- **Cota:** `checkLimite` não muda — como não há linha nova em `Indicacao`, o
-  ajuste deixa de consumir cota sozinho.
-
-O cliente hoje não manda o `record_id` no ajuste (`app/(app)/gerar/client.tsx`,
-`handleGerar(texto, complementos, ajuste)`); é o primeiro ponto a mexer.
-
-#### Sinalização, que foi pedida de propósito
-
-- No histórico, o card mostra que a indicação foi ajustada e quantas vezes.
-- Na tela de geração, indicar em que versão se está.
-- As instruções de ajuste viram um corpus consultável: é exatamente o que o
-  `scripts/export-finetuning.ts` precisa para deixar de treinar em
-  quase-duplicatas — hoje as cinco tentativas entram com o mesmo peso da versão
-  boa.
-
-#### Ordem do deploy, que aqui não é detalhe
-
-O deploy **não aplica migrations** (armadilha 5). Então: aplicar a migration à
-mão primeiro, confirmar com `npx prisma migrate status`, e só depois subir o
-código que usa a tabela. Na ordem inversa, a rota grava numa tabela inexistente
-e a geração quebra em produção.
-
-Backfill das 154 indicações existentes é opcional: código que trata "sem versão"
-como v1 resolve, e evita um script escrevendo em produção.
+O conserto no servidor não resolve sozinho: **enquanto o ajuste for o caminho
+menos visível, ele vai continuar sendo o menos usado.** Vale inverter o peso dos
+dois, ou abrir a caixa de ajuste por padrão.
 ### 5. Numeração do histórico — resolvida em 16/09
 
 Registro. O número saía de `total - offset - i`, com o total **já filtrado**: a
