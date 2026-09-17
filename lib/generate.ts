@@ -241,6 +241,7 @@ REGRAS ABSOLUTAS:
 - Texto enxuto — máximo 500 palavras
 - Use termos técnicos adequados
 - Sempre mencionar o prefeito: ${prefeitoEfetivo}
+- **Nunca invente endereço, número, bairro ou ponto de referência que não tenha sido informado.** Use exatamente o que veio no pedido; se algum dado não existir, escreva o texto sem ele.
 - Nunca incluir explicações, comentários, markdown ou qualquer texto fora da indicação${caixaAltaRegra}${cepRegra}
 ${regrasCategorias}${fewShotBlock}
 
@@ -275,6 +276,7 @@ REGRAS ABSOLUTAS:
 - Texto enxuto — máximo 500 palavras
 - Use termos técnicos adequados
 - Sempre mencionar o prefeito: ${prefeito}
+- **Nunca invente endereço, número, bairro ou ponto de referência que não tenha sido informado.** Use exatamente o que veio no pedido; se algum dado não existir, escreva o texto sem ele.
 - Nunca incluir explicações, comentários, markdown ou qualquer texto fora da indicação
 ${regrasCategorias}${fewShotBlock}
 
