@@ -85,6 +85,34 @@ model Indicacao {
   // vínculo cai para NULL (onDelete: SetNull) em vez de apagar a indicação.
   userId        String?
   user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  // Cada "Regenerar com ajuste" acrescenta uma versão aqui e atualiza os campos
+  // acima com o texto novo. A indicação continua sendo UMA linha — é o que
+  // mantém histórico, numeração, contagem e cota do TRIAL corretos sem que
+  // nenhuma dessas consultas precise saber de versão.
+  versoes       IndicacaoVersao[]
+}
+
+// Histórico de versões de uma indicação. A versão 1 é o texto original; cada
+// ajuste do assessor cria a próxima, guardando a instrução que a gerou.
+//
+// O campo `ajuste` é o motivo desta tabela existir: é o registro do que a IA
+// errou, na palavra de quem corrigiu. Serve para melhorar prompt e few-shot, e
+// para o export de fine-tuning parar de treinar nas tentativas descartadas com
+// o mesmo peso da versão aceita.
+model IndicacaoVersao {
+  id            String    @id @default(cuid())
+  indicacaoId   String
+  indicacao     Indicacao @relation(fields: [indicacaoId], references: [id], onDelete: Cascade)
+  versao        Int
+  textoFinal    String
+  ementa        String?
+  extractedJson String
+  ajuste        String?
+  criadaEm      DateTime  @default(now())
+
+  @@unique([indicacaoId, versao])
+  @@index([indicacaoId])
 }
 
 // ─────────────────────────────────────────────

@@ -32,7 +32,7 @@ import type { ExtractedData } from '@/lib/types';
 type ResultState =
   | { kind: 'empty' }
   | { kind: 'loading'; step: number }
-  | { kind: 'success'; textoFinal: string; ementa?: string; recordId: string }
+  | { kind: 'success'; textoFinal: string; ementa?: string; recordId: string; versao?: number }
   | { kind: 'error'; message: string }
   | { kind: 'limite'; motivo: string };
 
@@ -596,7 +596,15 @@ export default function GerarPageClient({
 
   // ── Chamada à API ───────────────────────────
   const handleGerar = useCallback(
-    async (textoInput: string, complementos?: Record<string, string>, ajuste?: string) => {
+    async (
+      textoInput: string,
+      complementos?: Record<string, string>,
+      ajuste?: string,
+      // Id da indicação sendo ajustada. Sem ele, o ajuste vira indicação nova
+      // no servidor — era assim que cinco tentativas do mesmo pedido viravam
+      // cinco registros.
+      ajustarId?: string,
+    ) => {
       if (textoInput.trim().length < 10) return;
 
       setResult({ kind: 'loading', step: 0 });
@@ -606,7 +614,7 @@ export default function GerarPageClient({
         const res = await fetch('/api/indicacao', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ texto: textoInput, complementos, ajuste }),
+          body: JSON.stringify({ texto: textoInput, complementos, ajuste, ajustarId }),
         });
 
         if (res.status === 402) {
@@ -646,9 +654,14 @@ export default function GerarPageClient({
             textoFinal: data.texto_final,
             ementa: data.ementa,
             recordId: data.record_id,
+            versao: data.versao,
           });
-          setLocalUsage((u) => u + 1);
-          toast.success('Indicação gerada!');
+          // Ajuste não cria indicação nova, então não consome cota do plano —
+          // contar aqui faria o aviso de limite aparecer antes da hora.
+          if (!ajustarId) setLocalUsage((u) => u + 1);
+          toast.success(
+            ajustarId ? `Indicação ajustada (versão ${data.versao ?? '—'})` : 'Indicação gerada!',
+          );
           router.refresh();
         }
       } catch {
@@ -759,7 +772,14 @@ export default function GerarPageClient({
           state={result}
           onRetry={handleRetry}
           onRegenerate={handleRegenerate}
-          onAjuste={(ajuste) => handleGerar(texto, questions?.complementos, ajuste)}
+          onAjuste={(ajuste) =>
+            handleGerar(
+              texto,
+              questions?.complementos,
+              ajuste,
+              result.kind === 'success' ? result.recordId : undefined,
+            )
+          }
           loadingAjuste={isLoading}
         />
       </div>

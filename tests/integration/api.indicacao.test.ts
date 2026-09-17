@@ -28,7 +28,16 @@ vi.mock('@/lib/db', () => ({
     },
     indicacao: {
       create: vi.fn(),
+      findFirst: vi.fn(),
+      findUnique: vi.fn(),
+      update: vi.fn(),
     },
+    // Versões de uma indicação. A geração normal grava a versão 1; o ajuste
+    // grava a próxima, com a instrução que o assessor escreveu.
+    indicacaoVersao: {
+      create: vi.fn().mockResolvedValue({}),
+    },
+    $transaction: vi.fn().mockResolvedValue([]),
     usageLog: {
       create: vi.fn().mockResolvedValue({}),
     },
@@ -105,6 +114,8 @@ describe('POST /api/indicacao', () => {
       vereadorSlug: 'outro',
     });
     (prisma.indicacao.create as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'ind-1' });
+    (prisma.indicacaoVersao.create as ReturnType<typeof vi.fn>).mockResolvedValue({});
+    (prisma.$transaction as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([]);
     (indicacaoPipeline as ReturnType<typeof vi.fn>).mockResolvedValue({
       status: 'success',
       textoFinal: 'INDICAÇÃO Nº XXX...',
@@ -127,6 +138,72 @@ describe('POST /api/indicacao', () => {
         expect(body.texto_final).toBe('INDICAÇÃO Nº XXX...');
         expect(body.record_id).toBe('ind-1');
       },
+    });
+  });
+
+  /**
+   * Ajuste. Antes, "Regenerar com ajuste" criava uma indicação NOVA: cinco
+   * tentativas do mesmo pedido viravam cinco registros no histórico e cinco na
+   * cota do plano. Agora vira versão da mesma indicação.
+   */
+  describe('ajuste de uma indicação existente', () => {
+    beforeEach(() => {
+      (prisma.indicacao.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'ind-1' });
+      (prisma.indicacao.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
+        versoes: [{ versao: 1 }],
+      });
+    });
+
+    it('não cria indicação nova — atualiza e versiona a existente', async () => {
+      await testApiHandler({
+        appHandler: handler,
+        async test({ fetch }) {
+          const res = await fetch({
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              texto: TEXTO_VALIDO,
+              ajuste: 'trocar o endereço para o número 250',
+              ajustarId: 'ind-1',
+            }),
+          });
+
+          expect(res.status).toBe(200);
+          const body = await res.json();
+
+          // O mesmo registro, uma versão adiante.
+          expect(body.record_id).toBe('ind-1');
+          expect(body.versao).toBe(2);
+
+          // O ponto do conserto: nenhuma linha nova em Indicacao.
+          expect(prisma.indicacao.create).not.toHaveBeenCalled();
+          expect(prisma.$transaction).toHaveBeenCalled();
+        },
+      });
+    });
+
+    it('recusa ajustar indicação de outro gabinete', async () => {
+      // findFirst filtra por tenantId: id de outro tenant não é encontrado.
+      (prisma.indicacao.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
+      await testApiHandler({
+        appHandler: handler,
+        async test({ fetch }) {
+          const res = await fetch({
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              texto: TEXTO_VALIDO,
+              ajuste: 'qualquer coisa',
+              ajustarId: 'indicacao-de-outro-tenant',
+            }),
+          });
+
+          expect(res.status).toBe(404);
+          expect(prisma.indicacao.update).not.toHaveBeenCalled();
+          expect(prisma.indicacao.create).not.toHaveBeenCalled();
+        },
+      });
     });
   });
 
