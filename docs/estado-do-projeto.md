@@ -312,6 +312,57 @@ projeto no seletor do topo do painel da OpenAI, não só o nome da chave.
 
 ---
 
+**14. Um `CLAUDE.md` de subdiretório não é lido no começo da sessão.**
+O Claude Code carrega o `CLAUDE.md` do diretório de trabalho e dos **pais**.
+Os de subdiretórios entram só quando ele lê algum arquivo de dentro deles.
+Medido nesta sessão, com a sessão aberta em `C:\Dipo Eco`: o contexto acusava
+52 tokens de memória — a linha do `MEMORY.md` — e nenhuma das 314 linhas do
+`CLAUDE.md`. As regras chegavam tarde, ou não chegavam, para qualquer comando
+que rodasse antes da primeira leitura de arquivo. Por isso existe agora um
+`CLAUDE.md` na pasta `Dipo Eco`, com cópia versionada em
+[claude-raiz.md](claude-raiz.md). **Abra a sessão dentro do repositório**, não
+na pasta que os contém.
+
+---
+
+## O `CLAUDE.md` foi enxugado — 17/09
+
+De 314 linhas e 2.154 palavras para 199 e 1.621. A recomendação oficial é menos
+de 200 linhas: acima disso as regras competem entre si e a adesão cai. O arquivo
+tinha virado três coisas ao mesmo tempo — manual, referência e lista de regras.
+
+Saiu o que não precisa estar em toda sessão:
+
+| O que saiu | Para onde | Por quê |
+|---|---|---|
+| Tutorial de test-login (82 linhas) | skill `test-login` | procedimento de vários passos que só importa quando o assunto aparece |
+| Gabinetes beta, estilo por vereador, limites por plano | [estilos-por-vereador.md](estilos-por-vereador.md) | repetia `lib/vereadores.ts` e `lib/planos.ts` à mão |
+
+A segunda merece nota. O próprio arquivo dizia *"a fonte da verdade é
+`lib/vereadores.ts` — mantenha esta tabela em sincronia com ela"*. Uma cópia que
+precisa ser sincronizada à mão não é resumo: é uma segunda fonte da verdade
+esperando a hora de divergir. Conferido antes de cortar — `lib/vereadores.ts`
+tem todos os campos que a tabela repetia.
+
+**As armadilhas caras não saíram.** São elas que pagam o custo do arquivo:
+migrations que o deploy não aplica, isolamento por tenant, margem do PDF no
+`@page`, o glob do `outputFileTracingIncludes`, a variável `LLM_MODEL` morta.
+
+Princípio: **num arquivo de regras, o que se corta não é o que é menos
+interessante — é o que está escrito em outro lugar que não pode mentir.**
+
+### Sobre o custo em tokens
+
+Vale registrar para não repetir a conta errada. Muito artigo afirma que o
+`CLAUDE.md` custa preço cheio a cada turno. Não custa: ele fica no prefixo
+cacheado, e leitura de cache sai por ~10% do preço de entrada. O motivo de
+enxugar é **diluição**, não preço — a própria documentação avisa que arquivo
+inchado faz instrução ser ignorada. Consequência prática: **editar o
+`CLAUDE.md` no meio da sessão invalida o cache e faz pagar tudo de novo a preço
+cheio.** Mexer nele no começo.
+
+---
+
 ## Pendências
 
 Em ordem do que eu atacaria primeiro.
