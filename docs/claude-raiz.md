@@ -19,6 +19,36 @@ vereador em Guarujá/SP. **Ela não é um repositório** — cada sistema tem o 
 mexer em qualquer coisa.** Cada um tem armadilhas próprias, aprendidas quebrando
 produção, que não estão repetidas aqui.
 
+## As três máquinas e o foco de cada uma
+
+Cada computador tem um papel. A divisão existe para manter a sessão num assunto
+só — é lembrete, não bloqueio.
+
+| Máquina | Como reconhecer | Foco |
+|---|---|---|
+| Notebook | `hostname` = `WIN-UIKT7DS2DOB`, usuário `olavo` | **Desenvolvimento**: código, design, testes, features |
+| Trabalho | usuário do Windows parece ser `Olavo Bernardo` (a confirmar) | a definir — anote aqui na primeira sessão que rodar lá |
+| Casa | a descobrir | a definir — anote aqui na primeira sessão que rodar lá |
+
+**Confira o `hostname` ao abrir a sessão.** Se a máquina tiver foco definido e o
+pedido não couber nele, diga isso em uma linha e ofereça abrir sessão separada.
+Se a pessoa mandar seguir, siga.
+
+## Os três grupos de sessão
+
+| Grupo | O que vai nele |
+|---|---|
+| **Dipo — desenvolvimento** | código, design, testes, features, ferramentas de trabalho |
+| **Dipo — operação** | credenciais, backup, monitoramento, infraestrutura, quedas |
+| **Fora do Dipo** | contratos, mídia, PDFs pessoais — o que não é o gabinete |
+
+**Uma sessão, um assunto.** Ao trocar de assunto: `/clear` e sessão nova, com
+título que diga o que ela é. `/compact` só serve para continuar no mesmo
+assunto — ele guarda um resumo do que não interessa mais.
+
+O `docs/estado-do-projeto.md` é o que torna isso barato: fechar uma sessão não
+perde nada, porque o que importa já está no repositório.
+
 ## O que vale nos três
 
 - **`git pull` antes de começar, commit e push antes de encerrar.** O projeto é

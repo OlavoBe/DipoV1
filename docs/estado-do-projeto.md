@@ -363,6 +363,24 @@ cheio.** Mexer nele no começo.
 
 ---
 
+## Como as sessões estão divididas — 17/09
+
+Decidido nesta data. O ecossistema tem três frentes, e uma sessão deve ficar
+numa só: **desenvolvimento** (código, design, testes), **operação**
+(credenciais, backup, monitoramento, quedas) e **fora do Dipo** (contratos,
+mídia). Os grupos existem na barra lateral do app, mas a regra vale em qualquer
+máquina e está escrita em [claude-raiz.md](claude-raiz.md), junto com o foco de
+cada computador — o notebook (`hostname` `WIN-UIKT7DS2DOB`) é a máquina de
+desenvolvimento.
+
+O motivo está registrado na sessão que gerou a decisão: uma única sessão
+acumulou bug de histórico, queda do bot, rotação de credenciais, versionamento,
+contrato de patrocínio, PDF de filmagem e UptimeRobot. A documentação chama isso
+de *kitchen sink session*, e o custo não é só token — é qualidade, porque
+assunto irrelevante no contexto atrapalha o relevante.
+
+---
+
 ## Pendências
 
 Em ordem do que eu atacaria primeiro.
