@@ -394,23 +394,24 @@ Proteção que vale conhecer antes de mexer: o `findFirst` do ajuste filtra por
 `tenantId`. O `ajustarId` vem do cliente; sem esse filtro, um id forjado editaria
 a indicação de outro gabinete. Há teste cobrindo exatamente isso.
 
-### 4b. O botão de ajuste está escondido (alta, interface)
+### 4b. Peso visual do ajuste — resolvido em 17/09
 
-Descoberto ao testar o item acima. Na tela de resultado existem dois caminhos:
+O versionamento só serve se as pessoas acharem o botão. Na tela de resultado,
+"Nova indicação" era botão na fileira das ações principais e "Ajustar indicação"
+era um acordeão fechado em `text-xs` e cinza claro — a menor tipografia e a cor
+mais apagada da tela. O próprio dono do produto clicou no primeiro querendo o
+segundo.
 
-| Elemento | O que faz | Peso visual |
-| --- | --- | --- |
-| **Nova indicação** | limpa tudo e recomeça — cria registro novo | botão, destacado |
-| **Ajustar indicação** | abre a caixa de instrução do ajuste | link pequeno com seta |
+Duas mudanças, e a segunda importa tanto quanto a primeira:
 
-O dono do produto, sabendo exatamente o que a funcionalidade faz, usou o
-primeiro quando queria o segundo. O assessor vai fazer o mesmo — e continuará
-criando indicações novas em vez de ajustar, que é justamente o comportamento que
-o versionamento veio corrigir.
+- o ajuste ganhou tamanho e cor de ação, com a explicação do que ele evita:
+  *"corrige o texto sem gerar outra"*;
+- "Nova indicação" virou **"Começar do zero"**. Os dois rótulos antigos falavam
+  em "indicação" e não diziam o que cada um fazia; o mais destrutivo era o mais
+  visível.
 
-O conserto no servidor não resolve sozinho: **enquanto o ajuste for o caminho
-menos visível, ele vai continuar sendo o menos usado.** Vale inverter o peso dos
-dois, ou abrir a caixa de ajuste por padrão.
+Vale como princípio: **quando duas ações vizinhas têm nomes parecidos, a mais
+destrutiva não pode ser a mais fácil de clicar.**
 ### 5. Numeração do histórico — resolvida em 16/09
 
 Registro. O número saía de `total - offset - i`, com o total **já filtrado**: a
