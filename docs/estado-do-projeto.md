@@ -264,41 +264,44 @@ de ambiente. O caminho que funciona é criar o `.env` (já ignorado pelo git) co
 `DATABASE_URL` e chamar o binário local:
 `"C:\Program Files\nodejs\node.exe" node_modules\prisma\build\index.js migrate deploy`.
 
-**12. Exemplo few-shot vence instrução de prompt — sempre.** Investigado a fundo
-em 17/09, com quatro gerações reais em produção.
+**12. Quando o modelo erra o mesmo campo de três formas, o problema é o dado.**
+Investigado em 17/09, com seis gerações reais em produção. Vale como método.
 
-O sintoma: o pedido dizia "Rua Doutor Teste, 100, Vila Santa Rosa"; a ementa
-saía correta e o corpo trazia "Rua das Flores, Bairro Jardim Primavera" —
-endereço inexistente no pedido. Depois de um ajuste no prompt, o corpo parou de
-inventar mas passou a **omitir** o endereço, o que também reprova o documento:
-a secretaria não tem onde executar o serviço.
+O corpo da indicação saía com endereço errado, depois sem endereço, depois com
+um pedido de endereço ao usuário — enquanto a **ementa saía sempre correta**.
+Essa assimetria era a pista: os dois leem os mesmos dados extraídos.
 
-Três tentativas de conserto por regra de prompt falharam, cada uma revelando
-uma camada:
+**Causa raiz:** `buildUserPromptGeral` montava o pedido **sem nenhuma linha de
+endereço** — só categoria, tema, solicitante, descrição, providências e
+observações. Esse caminho atende tudo que não é `servico_urbano` nem
+`seguranca_publica`, e "poda de árvore" cai em `meio_ambiente`. O modelo nunca
+recebeu o endereço nessas categorias. A ementa funcionava porque
+`lib/ementa.ts` monta a localização por conta própria.
 
-1. Regra global "nunca invente endereço" — o inventado sumiu, o endereço sumiu
-   junto. **Proibir sem obrigar empurra o modelo para a omissão.**
-2. Regra "o endereço informado é obrigatório no corpo" — ignorada, porque a
-   fórmula da `variacao_2` (a do gabinete) lista providências **sem nenhum lugar
-   para o endereço**, enquanto a `variacao_1` tem `[ENDEREÇO]` e `[BAIRRO]`
-   explícitos. Fórmula vence regra.
-3. Correção da instrução de justificativa, que entregava a abertura pronta
-   "Fomos procurados por moradores **da localidade** que relataram..." —
-   preenchendo o lugar do endereço com uma palavra genérica. Continuou saindo
-   igual.
+Três tentativas de conserto por prompt falharam antes disso, e cada uma ensina:
 
-**A causa real está nos dados, não no prompt:**
-`data/indicacoes_exemplo/generico/tapa_buraco.json` contém a frase
-"moradores da localidade que relataram a existência de um buraco...". O modelo
-copia o exemplo. Nenhuma instrução venceu isso, e nenhuma vai.
+1. "Nunca invente endereço" → parou de inventar e passou a **omitir**.
+   Proibir sem obrigar empurra para a omissão.
+2. "O endereço é obrigatório no corpo" → continuou omitindo, porque a fórmula
+   da `variacao_2` não tinha lugar para endereço. **Fórmula vence regra.**
+3. Regra mais dura → o modelo **parou de gerar o documento** e devolveu
+   "preciso do endereço completo, por favor forneça". Toda obrigação precisa
+   dizer o que fazer quando o dado não existe, senão o modelo inventa a saída —
+   e a que ele inventa costuma ser pior que a omissão.
 
-**Conserto:** editar o exemplo para que a abertura carregue o endereço, em vez
-de "da localidade". Verificar gerando de verdade — cada tentativa custa um
-deploy e uma geração paga, e é a única forma de saber.
+Por isso o prompt tem hoje a garantia: **sempre devolva a indicação pronta,
+nunca escreva mensagem ao usuário**. Um gerador de documento não conversa.
 
-**Estado hoje:** o endereço inventado não aparece mais (verificado), e o corpo
-sai sem endereço. É menos perigoso — endereço errado parece certo, endereço
-ausente é visível — mas não está resolvido.
+**Estado:** o endereço passou a ser incluído no prompt das categorias gerais, e
+a regra virou condicional com a garantia acima. **Falta verificar em produção** —
+a sessão acabou antes, com o navegador desconectado. Gere uma indicação de poda
+de árvore com endereço e confira se ele aparece no corpo, não só na ementa.
+
+**Também corrigido de passagem:** o exemplo genérico de tapa-buraco abria com
+"moradores da localidade que relataram [problema] ... na Rua X" — endereço no
+fim, depois do relato —, agora segue o padrão dos exemplos do gabinete, com o
+endereço antes do relato. E o typo "Foramos procurados" foi corrigido nos seis
+arquivos de exemplo; um teste do `doc-parser` chegava a exigir o typo.
 **13. `429 insufficient_quota` não é erro de chave inválida.**
 O código é `credit_balance_exhausted` e a mensagem fala em créditos: a chave está
 correta, quem está sem saldo é a **organização** dona dela. Aconteceu ao trocar a
