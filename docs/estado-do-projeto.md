@@ -292,10 +292,11 @@ Três tentativas de conserto por prompt falharam antes disso, e cada uma ensina:
 Por isso o prompt tem hoje a garantia: **sempre devolva a indicação pronta,
 nunca escreva mensagem ao usuário**. Um gerador de documento não conversa.
 
-**Estado:** o endereço passou a ser incluído no prompt das categorias gerais, e
-a regra virou condicional com a garantia acima. **Falta verificar em produção** —
-a sessão acabou antes, com o navegador desconectado. Gere uma indicação de poda
-de árvore com endereço e confira se ele aparece no corpo, não só na ementa.
+**Estado: resolvido e verificado em produção** (17/09, 02h30). A mesma poda de
+árvore que falhava saiu com o endereço nos três lugares — ementa, justificativa
+("moradores da Rua Doutor Teste, nº 100, Vila Santa Rosa, Guarujá/SP, que
+relataram...") e providência numerada. Nada inventado, nada omitido, sem
+mensagem ao usuário.
 
 **Também corrigido de passagem:** o exemplo genérico de tapa-buraco abria com
 "moradores da localidade que relataram [problema] ... na Rua X" — endereço no
