@@ -202,7 +202,7 @@ async function buildSystemPrompt(
       justificativaInstrucao = 'NÃO inclua bloco de justificativa. Vá direto da saudação para "INDICAÇÃO Nº".';
     } else if (perfil.estiloJustificativa === 'narrativa_demanda') {
       const prefixo = perfil.prefixoDemanda ?? 'Fomos procurados por moradores';
-      justificativaInstrucao = `Inclua parágrafo de justificativa ANTES de "INDICAÇÃO Nº" começando com "${prefixo} da localidade que relataram..." descrevendo o problema, o endereço completo e o impacto na comunidade.`;
+      justificativaInstrucao = `Inclua parágrafo de justificativa ANTES de "INDICAÇÃO Nº" começando com "${prefixo}" seguido do ENDEREÇO INFORMADO — logradouro, número e bairro, exatamente como vieram no pedido — e então do relato. Exemplo da forma: "${prefixo} da Rua Tal, nº 100, bairro Tal, que relataram...". Descreva o problema e o impacto na comunidade. Nunca escreva "da localidade" ou equivalente genérico no lugar do endereço.`;
     } else if (perfil.estiloJustificativa === 'argumentacao_tecnica') {
       justificativaInstrucao = 'Inclua 1-2 parágrafos de justificativa técnica formal e detalhada ANTES de "INDICAÇÃO Nº", explicando a necessidade da medida, o embasamento legal ou técnico pertinente e seus impactos na qualidade de vida e segurança da população.';
     } else {
@@ -217,7 +217,7 @@ async function buildSystemPrompt(
       estiloCorpoInstrucao = `Use EXATAMENTE esta fórmula para o corpo:\n"Indico à Mesa, ouvido o douto plenário, para que seja oficiado o Sr. Prefeito Municipal de Guarujá, Sr. ${prefeitoEfetivo.toUpperCase()}, para que determine ao setor competente [PROVIDÊNCIA EM CAIXA ALTA]."`;
     } else {
       // variacao_2 (padrão)
-      estiloCorpoInstrucao = `Use EXATAMENTE esta fórmula para o corpo:\n"Indico à Mesa, nos termos regimentais, que seja oficiado ao Excelentíssimo Senhor Prefeito Municipal de Guarujá, ${prefeitoEfetivo}, para que determine ao setor competente:\n\n[Lista numerada das providências solicitadas — use EXATAMENTE as providências fornecidas nos dados]"`;
+      estiloCorpoInstrucao = `Use EXATAMENTE esta fórmula para o corpo:\n"Indico à Mesa, nos termos regimentais, que seja oficiado ao Excelentíssimo Senhor Prefeito Municipal de Guarujá, ${prefeitoEfetivo}, para que determine ao setor competente:\n\n[Lista numerada das providências solicitadas — use EXATAMENTE as providências fornecidas nos dados, e cada item deve dizer ONDE, com o logradouro, número e bairro informados]"`;
     }
 
     // D) Caixa alta
