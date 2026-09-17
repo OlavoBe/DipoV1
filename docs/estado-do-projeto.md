@@ -323,6 +323,21 @@ que rodasse antes da primeira leitura de arquivo. Por isso existe agora um
 [claude-raiz.md](claude-raiz.md). **Abra a sessão dentro do repositório**, não
 na pasta que os contém.
 
+**15. A Vercel agrupa rotas em lambdas pelo `maxDuration`.**
+Rotas que declaram o mesmo `maxDuration` viram **uma** lambda; valores
+diferentes viram lambdas diferentes, e **cada uma leva a sua cópia inteira dos
+64MB do Chromium**. Com `/api/pdf/[id]` em 30 e `/api/demo` e `/api/health/pdf`
+em 60, cada deployment carregava duas cópias: 155MB dos 188MB totais. Sessenta e
+dois deployments retidos estouraram os 10GB de Functions Storage do plano.
+Nenhum aviso: o build passa, as rotas respondem, e a conta chega no fim do mês.
+Igualados em 60, o deployment caiu para ~111MB. O `verify:bundle` agora reprova
+quando as rotas de PDF divergem de grupo. Para conferir o agrupamento real de um
+deployment — não dá para ver isso no build:
+
+```
+/api/v1/deployments/<id>/builds   → agrupe os outputs por `digest`
+```
+
 ---
 
 ## O `CLAUDE.md` foi enxugado — 17/09

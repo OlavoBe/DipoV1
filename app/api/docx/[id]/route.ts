@@ -4,7 +4,11 @@ import { generateDocx } from '@/lib/docx';
 import { buildFilename } from '@/lib/pdf';
 import { auth } from '@/auth';
 
-export const maxDuration = 30;
+// 60 para cair no mesmo grupo de lambda das rotas de PDF — ver o comentário em
+// app/api/pdf/[id]/route.ts. Esta rota não gera PDF, mas importa `buildFilename`
+// de lib/pdf; sozinha num grupo de 30s ela viraria uma lambda à parte. Gerar
+// DOCX leva menos de um segundo: o teto é folga, não reserva.
+export const maxDuration = 60;
 
 export async function GET(
   req: NextRequest,

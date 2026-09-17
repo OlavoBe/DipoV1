@@ -62,6 +62,10 @@ Como o projeto funciona hoje e onde parou: [docs/estado-do-projeto.md](docs/esta
   manifesto (`.next/server/app/<rota>/route.js.nft.json`), não na saída do
   build: o build passa dos dois jeitos. `npm run verify:bundle` faz isso e roda
   no CI.
+- **Rotas com o mesmo `maxDuration` viram uma lambda só.** Valores diferentes
+  viram lambdas diferentes, e cada uma leva a sua cópia dos 64MB do Chromium.
+  Foi assim que o Functions Storage estourou. As rotas que geram PDF precisam
+  declarar o mesmo valor — `npm run verify:bundle` reprova se divergirem.
 - **Ao verificar uma correção, verifique pela rota que o usuário usa.** A
   geração de PDF foi dada como consertada depois de um teste por `/api/demo` —
   a única rota que estava certa. A rota real (`/api/pdf/[id]`) seguiu quebrada.

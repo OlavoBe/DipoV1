@@ -3,7 +3,23 @@ import { prisma } from '@/lib/db';
 import { generatePdf, buildFilename } from '@/lib/pdf';
 import { auth } from '@/auth';
 
-export const maxDuration = 30;
+/**
+ * 60 e não 30 por causa do empacotamento, não do tempo de execução.
+ *
+ * A Vercel agrupa numa mesma lambda as rotas que declaram o mesmo
+ * `maxDuration`. Com 30 aqui e 60 em `/api/demo` e `/api/health/pdf`, as rotas
+ * que geram PDF caíam em dois grupos — e cada grupo levava a sua cópia dos 64MB
+ * do `@sparticuz/chromium`. Eram 155MB dos 188MB de cada deployment, o que
+ * estourou o limite de Functions Storage do plano com 62 deployments retidos.
+ *
+ * Com os três em 60, o Chromium viaja uma vez só: 188MB → 111MB por deployment.
+ * Confira o agrupamento no deployment, não no build:
+ *   /api/v1/deployments/<id>/builds → agrupe os outputs por `digest`
+ *
+ * O teto maior não muda o custo (a cobrança é pelo tempo real), só dá folga ao
+ * cold start do Chromium.
+ */
+export const maxDuration = 60;
 
 export async function GET(
   req: NextRequest,

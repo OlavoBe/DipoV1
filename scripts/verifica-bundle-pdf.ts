@@ -65,6 +65,34 @@ function binariosFaltando(rota: string): string[] | 'sem-manifesto' {
   return BINARIOS.filter((b) => !traçados.has(b));
 }
 
+/**
+ * Confere que todas as rotas com Chromium dividem o mesmo grupo de lambda.
+ *
+ * A Vercel empacota numa lambda só as rotas que declaram o mesmo `maxDuration`.
+ * Quando elas divergem, cada grupo leva a sua cópia dos 64MB do Chromium e o
+ * deployment dobra de tamanho — foi o que estourou o Functions Storage do plano.
+ * Nada falha: o build passa, as rotas respondem, e a conta aparece no fim do mês.
+ *
+ * O manifesto (`functions-config-manifest.json`) é a fonte certa porque é o que
+ * a Vercel lê para montar os grupos.
+ */
+function gruposDivergentes(rotas: string[]): Map<number | 'ausente', string[]> {
+  const manifesto = path.join('.next', 'server', 'functions-config-manifest.json');
+  const grupos = new Map<number | 'ausente', string[]>();
+  if (!fs.existsSync(manifesto)) return grupos;
+
+  const { functions } = JSON.parse(fs.readFileSync(manifesto, 'utf8')) as {
+    functions: Record<string, { maxDuration?: number }>;
+  };
+
+  for (const rota of rotas) {
+    const chave = functions[`/${rota}`]?.maxDuration ?? 'ausente';
+    grupos.set(chave, [...(grupos.get(chave) ?? []), rota]);
+  }
+
+  return grupos;
+}
+
 function main(): void {
   const rotas = rotasQueGeramPdf();
 
@@ -105,7 +133,25 @@ function main(): void {
     process.exit(1);
   }
 
-  console.log(`\n${rotas.length} rota(s) verificada(s).`);
+  const grupos = gruposDivergentes(rotas);
+
+  if (grupos.size > 1) {
+    console.error('');
+    console.error('✗ as rotas que geram PDF estão em grupos de lambda diferentes:');
+    for (const [maxDuration, doGrupo] of grupos) {
+      console.error(`  maxDuration ${maxDuration}: ${doGrupo.map((r) => `/${r}`).join(', ')}`);
+    }
+    console.error('');
+    console.error('Cada grupo leva a sua cópia dos 64MB do Chromium, e o deployment');
+    console.error('cresce na mesma proporção. Iguale o `maxDuration` dessas rotas.');
+    process.exit(1);
+  }
+
+  const [maxDuration] = [...grupos.keys()];
+  console.log(
+    `\n${rotas.length} rota(s) verificada(s), todas no grupo maxDuration ${maxDuration} ` +
+      '— uma cópia só do Chromium por deployment.',
+  );
 }
 
 main();
