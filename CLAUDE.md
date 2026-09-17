@@ -1,103 +1,10 @@
-# Guia do Projeto — Dipo
+# Guia do Projeto — Dipo Indicações (DipoV1)
 
-Este arquivo é lido automaticamente pelo Claude Code no início de cada conversa.
-Ele documenta decisões arquiteturais, estratégias de teste e regras que devem
-ser seguidas ao modificar este projeto.
+Next.js 16 (App Router) · TypeScript · Prisma + PostgreSQL (Railway) ·
+NextAuth v5 beta (magic link via Resend) · PDF por Playwright · DOCX pela lib
+`docx` · deploy na Vercel. O resto do stack está no `package.json`.
 
----
-
-## Stack
-
-- **Framework:** Next.js 16 (App Router)
-- **Auth:** NextAuth v5 (beta) — magic link via Resend + Prisma adapter
-- **Banco:** PostgreSQL via Prisma ORM (hospedado no Railway)
-- **LLM:** Anthropic Claude ou OpenAI (configurável via `LLM_PROVIDER`)
-- **PDF:** Playwright (Chromium headless)
-- **DOCX:** biblioteca `docx`
-- **Email:** Resend
-
----
-
-## Estratégia de Testes — Login sem Magic Link
-
-### Problema
-O produto usa autenticação via magic link (e-mail). Durante testes é inviável
-ficar recebendo e-mails para cada conta/plano que precisa ser testado.
-
-### Solução adotada
-Existe uma rota e página de login exclusivas para testes que **só funcionam
-quando `TEST_MODE=true`** está definido no `.env.local` (arquivo gitignored).
-O código dessas rotas **sempre existe no repositório** mas é inerte em produção.
-
-### Como ativar o modo de testes
-
-1. Crie (ou edite) o arquivo `.env.local` na raiz do projeto:
-   ```
-   TEST_MODE=true
-   ```
-2. Reinicie o servidor de desenvolvimento (`npm run dev`)
-3. Acesse `http://localhost:3000/test-login`
-
-### Como usar
-
-A página `/test-login` oferece:
-- **Contas rápidas** pré-definidas por plano (Demo, Trial, Pro Assessor, etc.)
-- **Campo livre** para entrar com qualquer e-mail
-
-O login cria uma sessão real no banco (igual ao magic link) — sem JWT,
-sem bypass no middleware. Tudo funciona exatamente como em produção.
-
-### Configurar plano de cada conta de teste
-
-Após o primeiro login de uma conta, ela existe no banco sem tenant/plano.
-Para associar um plano específico, use o Prisma Studio:
-
-```bash
-npx prisma studio
-# Acesse http://localhost:5555
-```
-
-Fluxo:
-1. Crie um **Tenant** com o plano desejado (`DEMO`, `TRIAL`, `PRO_ASSESSOR`, etc.)
-2. Associe o **User** ao Tenant (campo `tenantId`)
-
-Ou via SQL direto:
-```sql
--- Criar tenant com plano Trial
-INSERT INTO "Tenant" (id, nome, plano, "criadoEm")
-VALUES (gen_random_uuid()::text, 'Teste Trial', 'TRIAL', now());
-
--- Associar usuário ao tenant
-UPDATE "User" SET "tenantId" = '<id-do-tenant>' WHERE email = 'teste-trial@dipo.local';
-```
-
-### Contas de teste pré-definidas na página
-
-| Label         | E-mail                          | Para testar                        |
-|---------------|---------------------------------|------------------------------------|
-| Demo          | teste-demo@dipo.local           | Plano DEMO (bloqueado na rota auth)|
-| Trial         | teste-trial@dipo.local          | Limite de 5/3h                     |
-| Pro Assessor  | teste-pro-assessor@dipo.local   | Ilimitado                          |
-| Pro Gabinete  | teste-pro-gabinete@dipo.local   | Ilimitado                          |
-| Câmara        | teste-camara@dipo.local         | Ilimitado                          |
-
-### Como desativar ao terminar os testes
-
-Simplesmente remova ou comente a linha do `.env.local`:
-```
-# TEST_MODE=true
-```
-E reinicie o servidor. As rotas `/test-login` e `/api/test-login` voltam a
-retornar 404 automaticamente. **Nenhum código de produção precisa ser alterado.**
-
-### Arquivos envolvidos no modo de testes
-
-```
-app/test-login/page.tsx          ← página de login de teste (client component)
-app/api/test-login/route.ts      ← endpoint que cria a sessão no banco
-.env.local                       ← (gitignored) contém TEST_MODE=true
-.env.local.example               ← exemplo commitado para referência
-```
+Como o projeto funciona hoje e onde parou: [docs/estado-do-projeto.md](docs/estado-do-projeto.md).
 
 ---
 
@@ -165,6 +72,11 @@ app/api/test-login/route.ts      ← endpoint que cria a sessão no banco
   usuário. Um pedido para "apagar os outros templates" pode alcançar gabinetes
   que ele não tinha em mente. `scripts/aplicar-template.ts` faz dry-run por
   padrão — siga esse padrão em scripts que escrevem em produção.
+- **Para testar login, use o fluxo `/test-login`** em vez de mandar o usuário
+  receber magic link. A skill `test-login` tem o passo a passo.
+- **Nunca remover os arquivos de test-login** (`app/test-login/page.tsx` e
+  `app/api/test-login/route.ts`) — são inócuos em produção e necessários para o
+  ciclo de desenvolvimento.
 
 ---
 
@@ -209,53 +121,26 @@ O Dipo são três repositórios: este, o `dipoagenda` (bot de WhatsApp) e o
 commit. O que atravessa os dois sistemas — infraestrutura, riscos de segurança,
 decisões de produto — vai no documento do sistema afetado, não só num deles.
 
----
+### Num computador novo
 
-## Limites por plano (lib/planos.ts)
-
-| Plano        | Limite                          |
-|--------------|---------------------------------|
-| DEMO         | Bloqueado na rota autenticada    |
-| TRIAL        | 5 indicações nas últimas 3 horas |
-| BETA         | Ilimitado (testadores)           |
-| PRO_ASSESSOR | Ilimitado                        |
-| PRO_GABINETE | Ilimitado                        |
-| CAMARA       | Ilimitado                        |
-
-A demo pública (`/demo` + `/api/demo`) tem limite separado: 1 geração por IP por dia,
-controlado pela tabela `DemoUso`.
+O `CLAUDE.md` da pasta `Dipo Eco` (acima dos repositórios) não está em git —
+nenhum repositório contém a pasta pai. Ele é recriado a partir de
+[docs/claude-raiz.md](docs/claude-raiz.md): copie o conteúdo para
+`<pasta>/Dipo Eco/CLAUDE.md`. Sem ele, as regras deste arquivo só chegam
+quando eu leio algum arquivo de dentro do repositório — tarde demais para um
+comando que já rodou.
 
 ---
 
-## Beta v2 — Contexto
+## Onde ficam os dados que mudam
 
-Estamos expandindo o produto para **4 gabinetes beta**:
+Nada disto é repetido aqui: tabela copiada à mão envelhece e vira armadilha.
 
-| Slug             | Nome completo              | Apelido            |
-|------------------|----------------------------|--------------------|
-| `valdemir`       | Valdemir Batista Santana   | "Val Advogado"     |
-| `ariani_paz`     | Ariani da Silva Paz        | "Ariani"           |
-| `juninho_eroso`  | Edmar Lima dos Santos      | "Juninho Eroso"    |
-| `marcio_pet`     | Márcio Nabor Tardelli      | "Márcio do Pet Shop" |
-
-A fonte da verdade é `lib/vereadores.ts` — mantenha esta tabela em sincronia com ela.
-
-- O onboarding tem dropdown de seleção de vereador com esses 4 + "Outro vereador"
-- Few-shot examples e system prompts são filtrados por vereador quando há perfil dedicado
-- Existe plano **BETA** (sem limite de indicações) para usuários testadores beta
-
----
-
-## Estilos por Vereador
-
-Cada vereador tem um estilo de texto distinto que deve ser respeitado na geração:
-
-| Vereador            | Estilo                                                                                     |
-|---------------------|--------------------------------------------------------------------------------------------|
-| **Juninho Eroso**   | Direto, sem justificativa longa, padrão clássico (Variação 1), saudação tipo B             |
-| **Ariani**          | Texto em CAIXA ALTA, CEP sempre presente, providências numeradas (Variação 2), saudação B  |
-| **Márcio do Pet**   | "Fomos procurados por moradores..." + providências numeradas (Variação 2), saudação A ou B |
-| **Valdemir**        | Narrativa técnica formal prolíxa, justificativa + indicação separados, saudação tipo A     |
+| O que | Fonte da verdade |
+|---|---|
+| Gabinetes beta, estilo de cada vereador | `lib/vereadores.ts` — descrição em prosa em [docs/estilos-por-vereador.md](docs/estilos-por-vereador.md) |
+| Planos e limites | `lib/planos.ts` |
+| Contas de teste por plano | skill `test-login` |
 
 ---
 
