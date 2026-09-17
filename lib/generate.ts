@@ -202,7 +202,7 @@ async function buildSystemPrompt(
       justificativaInstrucao = 'NÃO inclua bloco de justificativa. Vá direto da saudação para "INDICAÇÃO Nº".';
     } else if (perfil.estiloJustificativa === 'narrativa_demanda') {
       const prefixo = perfil.prefixoDemanda ?? 'Fomos procurados por moradores';
-      justificativaInstrucao = `Inclua parágrafo de justificativa ANTES de "INDICAÇÃO Nº" começando com "${prefixo}" seguido do ENDEREÇO INFORMADO — logradouro, número e bairro, exatamente como vieram no pedido — e então do relato. Exemplo da forma: "${prefixo} da Rua Tal, nº 100, bairro Tal, que relataram...". Descreva o problema e o impacto na comunidade. Nunca escreva "da localidade" ou equivalente genérico no lugar do endereço.`;
+      justificativaInstrucao = `Inclua parágrafo de justificativa ANTES de "INDICAÇÃO Nº" começando com "${prefixo}" seguido do ENDEREÇO INFORMADO — logradouro, número e bairro, exatamente como vieram no pedido — e então do relato. Exemplo da forma: "${prefixo} da Rua Tal, nº 100, bairro Tal, que relataram...". Descreva o problema e o impacto na comunidade. Quando o endereço vier nos dados, não o substitua por termo genérico como "da localidade".`;
     } else if (perfil.estiloJustificativa === 'argumentacao_tecnica') {
       justificativaInstrucao = 'Inclua 1-2 parágrafos de justificativa técnica formal e detalhada ANTES de "INDICAÇÃO Nº", explicando a necessidade da medida, o embasamento legal ou técnico pertinente e seus impactos na qualidade de vida e segurança da população.';
     } else {
@@ -241,7 +241,8 @@ REGRAS ABSOLUTAS:
 - Texto enxuto — máximo 500 palavras
 - Use termos técnicos adequados
 - Sempre mencionar o prefeito: ${prefeitoEfetivo}
-- **O endereço informado é obrigatório no corpo da indicação, e apenas ele.** Escreva logradouro, número e bairro exatamente como vieram no pedido, sem trocar, completar ou inventar. Se algum desses dados não tiver sido informado, omita só o que falta — nunca substitua por outro.
+- **Use o endereço dos dados, e apenas ele.** Quando houver logradouro, número ou bairro nos dados, escreva-os no corpo exatamente como vieram, sem trocar nem completar. Nunca invente endereço que não esteja nos dados.
+- **Sempre devolva a indicação pronta, em qualquer situação.** Se algum dado faltar, escreva o documento sem ele — nunca peça informação, nunca escreva mensagem ao usuário, nunca devolva texto que não seja a indicação.
 - Nunca incluir explicações, comentários, markdown ou qualquer texto fora da indicação${caixaAltaRegra}${cepRegra}
 ${regrasCategorias}${fewShotBlock}
 
@@ -276,7 +277,8 @@ REGRAS ABSOLUTAS:
 - Texto enxuto — máximo 500 palavras
 - Use termos técnicos adequados
 - Sempre mencionar o prefeito: ${prefeito}
-- **O endereço informado é obrigatório no corpo da indicação, e apenas ele.** Escreva logradouro, número e bairro exatamente como vieram no pedido, sem trocar, completar ou inventar. Se algum desses dados não tiver sido informado, omita só o que falta — nunca substitua por outro.
+- **Use o endereço dos dados, e apenas ele.** Quando houver logradouro, número ou bairro nos dados, escreva-os no corpo exatamente como vieram, sem trocar nem completar. Nunca invente endereço que não esteja nos dados.
+- **Sempre devolva a indicação pronta, em qualquer situação.** Se algum dado faltar, escreva o documento sem ele — nunca peça informação, nunca escreva mensagem ao usuário, nunca devolva texto que não seja a indicação.
 - Nunca incluir explicações, comentários, markdown ou qualquer texto fora da indicação
 ${regrasCategorias}${fewShotBlock}
 
