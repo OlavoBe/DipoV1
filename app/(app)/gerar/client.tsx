@@ -322,11 +322,14 @@ function AjusteAccordion({ onAjuste, loading }: AjusteAccordionProps) {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 text-sm text-blue-700 hover:bg-blue-50 transition-colors"
       >
-        <span className="flex items-center gap-1.5 font-medium">
-          <Pencil className="h-3.5 w-3.5" />
-          Ajustar indicação
+        <span className="flex items-center gap-2 font-semibold">
+          <Pencil className="h-4 w-4" />
+          Ajustar esta indicação
+          <span className="font-normal text-xs text-gray-500">
+            corrige o texto sem gerar outra
+          </span>
         </span>
         <ChevronDown
           className={cn('h-3.5 w-3.5 transition-transform duration-200', open && 'rotate-180')}
@@ -479,9 +482,14 @@ function ResultCard({ state, onRetry, onRegenerate, onAjuste, loadingAjuste }: R
 
           <div className="flex gap-2 flex-wrap">
             <CopyButton text={state.textoFinal} />
+            {/* "Nova indicação" levava ao engano: quem queria corrigir um
+                detalhe clicava aqui, perdia o resultado e gerava outra
+                indicação do zero — que era justamente o desperdício que o
+                versionamento veio corrigir. O rótulo agora diz o que o botão
+                faz. */}
             <button onClick={onRegenerate} className="btn-secondary text-sm">
               <RefreshCw className="h-3.5 w-3.5" />
-              Nova indicação
+              Começar do zero
             </button>
           </div>
         </div>
