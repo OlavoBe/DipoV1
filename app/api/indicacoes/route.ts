@@ -105,11 +105,31 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     ]);
 
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-    const offset = (page - 1) * PAGE_SIZE;
+
+    // O número é como as indicações são referidas na conversa ("a #145"), então
+    // precisa ser o mesmo sempre. Antes saía de `total - offset - i`, com o
+    // total JÁ FILTRADO: a mesma indicação aparecia como #145 em "Todos" e como
+    // #3 em "Últimos 7 dias".
+    //
+    // Agora é a posição absoluta dentro do gabinete — quantas indicações existem
+    // até ela, inclusive —, que não depende de filtro nem de página. Fica estável
+    // porque as linhas só são acrescentadas: nada muda a contagem de quem veio
+    // antes.
+    //
+    // São N contagens por página (20), não uma. Com 154 registros é irrelevante;
+    // se um dia incomodar, o caminho é guardar o número numa coluna na criação —
+    // o que exige migration aplicada à mão, porque o deploy daqui não aplica.
+    const numeros = await Promise.all(
+      records.map((r) =>
+        prisma.indicacao.count({
+          where: { tenantId, createdAt: { lte: r.createdAt } },
+        }),
+      ),
+    );
 
     const items = records.map((r, i) => ({
       id: r.id,
-      numero: total - offset - i,
+      numero: numeros[i],
       assunto: extractAssunto(r.inputRaw, r.extractedJson),
       enderecoCompleto: r.logradouro
         ? [r.logradouro, r.numero, r.bairro].filter(Boolean).join(', ')
