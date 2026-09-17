@@ -241,7 +241,7 @@ REGRAS ABSOLUTAS:
 - Texto enxuto — máximo 500 palavras
 - Use termos técnicos adequados
 - Sempre mencionar o prefeito: ${prefeitoEfetivo}
-- **Nunca invente endereço, número, bairro ou ponto de referência que não tenha sido informado.** Use exatamente o que veio no pedido; se algum dado não existir, escreva o texto sem ele.
+- **O endereço informado é obrigatório no corpo da indicação, e apenas ele.** Escreva logradouro, número e bairro exatamente como vieram no pedido, sem trocar, completar ou inventar. Se algum desses dados não tiver sido informado, omita só o que falta — nunca substitua por outro.
 - Nunca incluir explicações, comentários, markdown ou qualquer texto fora da indicação${caixaAltaRegra}${cepRegra}
 ${regrasCategorias}${fewShotBlock}
 
@@ -276,7 +276,7 @@ REGRAS ABSOLUTAS:
 - Texto enxuto — máximo 500 palavras
 - Use termos técnicos adequados
 - Sempre mencionar o prefeito: ${prefeito}
-- **Nunca invente endereço, número, bairro ou ponto de referência que não tenha sido informado.** Use exatamente o que veio no pedido; se algum dado não existir, escreva o texto sem ele.
+- **O endereço informado é obrigatório no corpo da indicação, e apenas ele.** Escreva logradouro, número e bairro exatamente como vieram no pedido, sem trocar, completar ou inventar. Se algum desses dados não tiver sido informado, omita só o que falta — nunca substitua por outro.
 - Nunca incluir explicações, comentários, markdown ou qualquer texto fora da indicação
 ${regrasCategorias}${fewShotBlock}
 
